@@ -1,0 +1,51 @@
+/**
+ * TaskStateChip - Task-specific state chip with history popover
+ */
+
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+import { StateChip } from "@humansignal/ui";
+import { formatStateName, getStateDescription, getStateVariant } from "./utils";
+import { StateHistoryPopoverContent } from "./state-history-popover-content";
+
+export interface TaskStateChipProps {
+  /**
+   * Current state of the task
+   */
+  state: string;
+
+  /**
+   * Task ID for fetching state history
+   */
+  taskId?: number;
+
+  /**
+   * Whether the chip should be interactive (show history popover)
+   */
+  interactive?: boolean;
+}
+
+export function TaskStateChip({ state, taskId, interactive = true }: TaskStateChipProps) {
+  const { t } = useTranslation();
+  const [open, setOpen] = useState(false);
+
+  const label = t(`task_states.${state}`, formatStateName(state));
+  const description = t(`task_state_descriptions.${state}`, getStateDescription(state, "task"));
+  const variant = getStateVariant(state);
+
+  const popoverContent = taskId ? (
+    <StateHistoryPopoverContent entityType="task" entityId={taskId} isOpen={open} onClose={() => setOpen(false)} />
+  ) : undefined;
+
+  return (
+    <StateChip
+      label={label}
+      description={description}
+      variant={variant}
+      interactive={interactive && !!taskId}
+      popoverContent={popoverContent}
+      open={open}
+      onOpenChange={setOpen}
+    />
+  );
+}

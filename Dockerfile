@@ -101,6 +101,9 @@ ENV PATH="$VENV_PATH/bin:$PATH"
 # Copy dependency files
 COPY pyproject.toml poetry.lock README.md ./
 
+# Use CN mirror for poetry (project-level config, always honored by poetry 2.x)
+RUN printf '[repositories.pypi]\nurl = "https://pypi.tuna.tsinghua.edu.cn/simple"\n' > poetry.toml
+
 # Set a default build argument for including dev dependencies
 ARG INCLUDE_DEV=false
 

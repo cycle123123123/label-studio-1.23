@@ -46,3 +46,22 @@ label-studio 1.23.0（官方 + 汉化 + text 分支功能迁移）。Windows，g
 - 前端静态 chunk 名固定，改完需硬刷新。
 - i18next 键路径层级必须与 `t()` 完全一致（静默回退英文）。
 - Django 启动时 pypi 超时日志是噪音。
+
+## 服务器部署（甲方堡垒机，Debian-12-KVM，2026-08-05 上线）
+### 部署方式：官方镜像覆盖（不是源码构建）
+- 镜像 `label-studio:migrated` = `heartexlabs/label-studio:1.23.0` 官方镜像 + COPY 覆盖迁移版后端（`label_studio/`）与前端（`web/dist`）。**无 poetry/yarn 编译**，构建秒级。
+- 服务器路径 `/root/label-studio-1.23`（Gitee clone：`cycle12` 账号，私有仓库 `label-studio-1.23` + 传输仓库 `label-studio-dist` 已建）。
+- 代码同步链路：本地 → Gitee（`git push gitee main`，快）→ 服务器 `git pull`。GitHub 仅作备份。
+- 更新流程：`cd /root/label-studio-1.23 && git pull && docker build -f Dockerfile.cn -t label-studio:migrated . && docker compose up -d`。
+- 数据库：全新 PostgreSQL（compose 自带 db 服务，`./postgres-data`），启动自动 migrate（全新库无需 --fake）。
+- 端口 8080（nginx）；部署前需停旧容器释放端口。
+
+### 踩坑记录（全部已解决）
+- **服务器网络**：pypi.org 官方源仅 ~30KB/s（opencv 66MB 下不完）；**阿里源 27MB/s**（已验证）。国内源：apt→中科大、yarn→npmmirror（`.yarnrc`，yarn1 不认 npm_config_registry 环境变量）、poetry→阿里。
+- **poetry 2.x 卡死**：并行下载在最后包死锁、清华源缺锁定版本（zipp 3.19.1）。解法：poetry.toml `repositories.pypi.url=阿里` + `[installer] max-workers=1`；**poetry 1.8 不可用**（官方 pyproject 的 `requires-poetry` 是 2.x 字段）。
+- **label-studio-sdk**：lock 中 GitHub archive URL 在服务器超时（796s），改为 `codeload.github.com`（7/28 与本次均有效）。
+- **deploy/ 脚本坑**（commit `8c21be3` 已修）：docker-entrypoint.d 伪符号链接（Windows 解压丢失）已展开为真实脚本；所有 .sh 已加执行权限。
+- **.dockerignore**（commit `d320c05`）：`**` 忽略所有，需 `!dist` 白名单才能 COPY dist。
+- **数据目录权限**：`mkdir -p mydata && chown -R 1001:0 mydata`（容器 UID 1001），否则 `PermissionError: /label-studio/data/media`。
+- **8080 404 排查链**：nginx 正常 → `docker compose exec app sh -c 'ss -lntp|grep 8000'` 确认 app 是否监听（migrate 未完成时 NOT_LISTENING，等几分钟即可）。
+- 历史参考：7/28 Codex 会话 `019fa914-2df8-74b2-bb2d-ecc78ce73314` 记录了 B 版部署全过程（同款坑）。

@@ -101,10 +101,8 @@ ENV PATH="$VENV_PATH/bin:$PATH"
 # Copy dependency files
 COPY pyproject.toml poetry.lock README.md ./
 
-# Use CN mirror for poetry (project-level config, always honored by poetry 2.x)
-# NOTE: TUNA mirror lacks some pinned versions (e.g. zipp 3.19.1) - use aliyun instead.
-# max-workers=1 to avoid poetry2 downloader deadlock on the last package
-RUN printf '[repositories.pypi]\nurl = "https://mirrors.aliyun.com/pypi/simple"\n[installer]\nmax-workers = 1\n' > poetry.toml
+# max-workers=1 to avoid poetry2 downloader deadlock (stable serial download)
+RUN printf '[installer]\nmax-workers = 1\n' > poetry.toml
 
 # Set a default build argument for including dev dependencies
 ARG INCLUDE_DEV=false

@@ -29,6 +29,9 @@ ENV BUILD_NO_SERVER=true \
 
 WORKDIR /label-studio/web
 
+# yarn 1 reads .yarnrc (env npm_config_registry is NOT honored by yarn 1)
+RUN printf 'registry "https://registry.npmmirror.com"\n' > .yarnrc
+
 RUN sed -i 's#dl-cdn.alpinelinux.org#mirrors.ustc.edu.cn#g' /etc/apk/repositories && \
     apk add --no-cache \
     build-base \

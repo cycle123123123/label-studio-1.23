@@ -112,9 +112,9 @@ ARG INCLUDE_DEV=false
 RUN --mount=type=cache,target=/.poetry-cache,id=poetry-cache-alpine,sharing=locked \
     poetry check --lock && \
     if [ "$INCLUDE_DEV" = "true" ]; then \
-        poetry install --no-root --extras uwsgi --with test; \
+        poetry install -v --no-root --extras uwsgi --with test; \
     else \
-        poetry install --no-root --without test --extras uwsgi; \
+        poetry install -v --no-root --without test --extras uwsgi; \
     fi
 
 # Install LS

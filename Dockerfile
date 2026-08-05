@@ -102,7 +102,8 @@ ENV PATH="$VENV_PATH/bin:$PATH"
 COPY pyproject.toml poetry.lock README.md ./
 
 # Use CN mirror for poetry (project-level config, always honored by poetry 2.x)
-RUN printf '[repositories.pypi]\nurl = "https://pypi.tuna.tsinghua.edu.cn/simple"\n' > poetry.toml
+# NOTE: TUNA mirror lacks some pinned versions (e.g. zipp 3.19.1) - use aliyun instead
+RUN printf '[repositories.pypi]\nurl = "https://mirrors.aliyun.com/pypi/simple"\n' > poetry.toml
 
 # Set a default build argument for including dev dependencies
 ARG INCLUDE_DEV=false

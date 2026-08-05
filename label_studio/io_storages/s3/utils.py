@@ -37,8 +37,14 @@ def get_client_and_resource(
     s3_endpoint = s3_endpoint or get_env('S3_ENDPOINT')
     if s3_endpoint:
         settings['endpoint_url'] = s3_endpoint
-    client = session.client('s3', config=boto3.session.Config(signature_version='s3v4'), **settings)
-    resource = session.resource('s3', config=boto3.session.Config(signature_version='s3v4'), **settings)
+    # ====== 开始修改的地方 ======
+    # 强行指定使用 path 模式，解决 MinIO 拼接域名报错问题
+    custom_config = boto3.session.Config(
+        signature_version='s3v4',
+        s3={'addressing_style': 'path'}
+    )
+    client = session.client('s3', config=custom_config, verify=False, **settings)
+    resource = session.resource('s3', config=custom_config, verify=False, **settings)
     return client, resource
 
 

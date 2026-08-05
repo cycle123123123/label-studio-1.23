@@ -24,6 +24,7 @@ ENV BUILD_NO_SERVER=true \
     YARN_CACHE_FOLDER=/root/web/.yarn \
     NX_CACHE_DIRECTORY=/root/web/.nx \
     NODE_ENV=production \
+    npm_config_registry=https://registry.npmmirror.com \
     NODE_OPTIONS="--max-old-space-size=4096"
 
 WORKDIR /label-studio/web
@@ -71,6 +72,8 @@ ENV PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=on \
     PIP_DEFAULT_TIMEOUT=100 \
     PIP_CACHE_DIR="/.cache" \
+    PIP_INDEX_URL="https://pypi.tuna.tsinghua.edu.cn/simple" \
+    POETRY_REPOSITORIES_PYPI_URL="https://pypi.tuna.tsinghua.edu.cn/simple" \
     POETRY_CACHE_DIR="/.poetry-cache" \
     POETRY_HOME="/opt/poetry" \
     POETRY_VIRTUALENVS_IN_PROJECT=true \

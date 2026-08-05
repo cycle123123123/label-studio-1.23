@@ -1,7 +1,7 @@
 # AGENTS.md
 
 ## 项目
-label-studio 1.23.0（官方 + 汉化 + text 分支功能迁移）。Windows，非 git 仓库；改坏文件用 GitHub raw（`raw.githubusercontent.com/HumanSignal/label-studio/1.23.0/...`）恢复。
+label-studio 1.23.0（官方 + 汉化 + text 分支功能迁移）。Windows，git 仓库（main=`26cc2dc`），已发布到私有 GitHub `cycle123123123/label-studio-1.23`（https://github.com/cycle123123123/label-studio-1.23，remote origin 为 `git@gh443-direct:...` SSH 直连 443）。改坏文件用 GitHub raw（`raw.githubusercontent.com/HumanSignal/label-studio/1.23.0/...`）恢复。
 
 ## 构建/验证命令（`D:\work\label-studio-1.23.0\web`）
 - `yarn biome check [files]` / `yarn biome check --write [files]`
@@ -22,6 +22,7 @@ label-studio 1.23.0（官方 + 汉化 + text 分支功能迁移）。Windows，�
 5. **DM 扩展**：assignee 列（functions.py/managers.py/serializers.py）+ assign_tasks action + `Project.objects.for_user` 权限收紧。
 6. **前端**：ApiConfig 5 端点；3 设置页（Assignment/WorkflowAudit/Statistics）+ Settings 菜单（can_manage 显隐）；AppStore.js 提交失败不推进队列（eventResultsHaveError + isAlive import + submissionFinished）；lsf-sdk.js 三 handler 返回 result + 失败不 exitStream；locales 3 命名空间；类型文件。
 7. **测试**：test_task_assignment.py + test_task_assignment_standalone.py 移植；test_annotations.py/test_next_task.py/test_api.py/drafts.tavern.yml 适配分配语义。
+8. **S3/MinIO 兼容修复**（`io_storages/s3/utils.py`，源自 text 分支 commit 6453e41，2026-08-05 补齐）：凭证环境变量兜底（AWS_ACCESS_KEY_ID/SECRET/SESSION_TOKEN）、`S3_ENDPOINT`/`S3_region` env、presigned URL `ResponseContentType`（按扩展名补 MIME，防浏览器下载）、**`addressing_style: 'path'`**（MinIO 拼接域名报错核心修复）+ `verify=False`（自签证书）。部分内容（get_env/S3_ENDPOINT/ResponseContentType）迁移时已带，本次只补 path+verify。boto3 1.39.3 确认 `boto3.session.Config` 存在。
 
 ### 未迁移（用户决策）
 409 提交冲突检测（validate_submission_conflict/TaskSubmissionConflictError）、skip_reason/is_empty_submission/require_comment_on_skip 字段及逻辑、empty 统计。

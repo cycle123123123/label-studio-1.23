@@ -28,7 +28,8 @@ ENV BUILD_NO_SERVER=true \
 
 WORKDIR /label-studio/web
 
-RUN apk add --no-cache \
+RUN sed -i 's#dl-cdn.alpinelinux.org#mirrors.ustc.edu.cn#g' /etc/apk/repositories && \
+    apk add --no-cache \
     build-base \
     pkgconfig \
     cairo-dev \
@@ -76,7 +77,8 @@ ENV PYTHONUNBUFFERED=1 \
     POETRY_VIRTUALENVS_PREFER_ACTIVE_PYTHON=true \
     PATH="/opt/poetry/bin:$PATH"
 
-RUN apk add --no-cache \
+RUN sed -i 's#dl-cdn.alpinelinux.org#mirrors.ustc.edu.cn#g' /etc/apk/repositories && \
+    apk add --no-cache \
     build-base \
     git \
     linux-headers \
@@ -139,7 +141,8 @@ ENV LS_DIR=/label-studio \
 WORKDIR $LS_DIR
 
 # install prerequisites for app
-RUN apk add --no-cache \
+RUN sed -i 's#dl-cdn.alpinelinux.org#mirrors.ustc.edu.cn#g' /etc/apk/repositories && \
+    apk add --no-cache \
     expat \
     mesa-gl \
     glib \

@@ -3,7 +3,6 @@
 from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import Q
-from django.utils import timezone
 
 
 def has_manual_assignment(project) -> bool:
@@ -133,7 +132,6 @@ def apply_task_assignments(project, task_ids, assignee_id, assigned_by):
 
         assignments = TaskAssignment.objects.select_for_update().filter(task_id__in=valid_task_ids)
         existing_by_task_id = {assignment.task_id: assignment for assignment in assignments}
-        now = timezone.now()
 
         to_create = []
         to_update = []
@@ -191,7 +189,6 @@ def apply_task_assignments(project, task_ids, assignee_id, assigned_by):
                 )
                 current_assignment.user_id = assignee_id
                 current_assignment.assigned_by = assigned_by
-                current_assignment.created_at = now
                 to_update.append(current_assignment)
 
         if to_delete_task_ids:
@@ -199,7 +196,7 @@ def apply_task_assignments(project, task_ids, assignee_id, assigned_by):
         if to_create:
             TaskAssignment.objects.bulk_create(to_create, batch_size=1000)
         if to_update:
-            TaskAssignment.objects.bulk_update(to_update, ['user', 'assigned_by', 'created_at'], batch_size=1000)
+            TaskAssignment.objects.bulk_update(to_update, ['user', 'assigned_by'], batch_size=1000)
         if audit_logs:
             TaskAssignmentAuditLog.objects.bulk_create(audit_logs, batch_size=1000)
 

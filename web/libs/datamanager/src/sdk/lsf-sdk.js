@@ -865,7 +865,10 @@ export class LSFWrapper {
       return result;
     }
 
-    if (exitStream) return this.exitStream();
+    if (exitStream) {
+      this.clearExitStreamParam();
+      return this.exitStream();
+    }
 
     return result;
   };
@@ -911,6 +914,7 @@ export class LSFWrapper {
     }
 
     if (exitStream) {
+      this.clearExitStreamParam();
       await this.exitStream();
       return result;
     }
@@ -1150,16 +1154,17 @@ export class LSFWrapper {
   };
 
   shouldExitStream = () => {
-    const paramName = "exitStream";
-    const urlParam = new URLSearchParams(location.search).get(paramName);
+    return !!new URLSearchParams(location.search).get("exitStream");
+  };
+
+  clearExitStreamParam = () => {
     const searchParams = new URLSearchParams(window.location.search);
 
-    searchParams.delete(paramName);
+    searchParams.delete("exitStream");
     let newRelativePathQuery = window.location.pathname;
 
     if (searchParams.toString()) newRelativePathQuery += `?${searchParams.toString()}`;
     window.history.pushState(null, "", newRelativePathQuery);
-    return !!urlParam;
   };
 
   // Proxy events that are unused by DM integration

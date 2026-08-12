@@ -37,6 +37,10 @@ label-studio 1.23.0（官方 + 汉化 + text 分支功能迁移）。Windows，g
 ### 已知语义差异（官方测试 skip）
 手动分配模式与多 annotator 共享任务池不兼容：test_next_task 的 breadth_first_simple/breadth_first_overlap_3/fetch_final_taken_task/overlap_first 已加 skip 标记（原因注释）。
 
+### 已知测试失败（预先存在，未修，2026-08-12 确认与改动无关）
+- `test_columns_api_returns_expected_ids`：迁移加了 DM `assignee` 列，官方测试期望列清单未同步（多一列）。修法：期望列表加 `assignee`。
+- `io_storages_presign_endpoints.tavern.yml` ×2：S3 兼容修复全局启用 `addressing_style: 'path'`（MinIO 需要），官方 presign 测试期望 virtual-host 格式。修法（两全）：endpoint 为官方 AWS 时用默认、自定义 endpoint 才 path。
+
 ### 数据库
 - 路径 `C:\Users\CYCLE\AppData\Local\label-studio\label-studio\label_studio.sqlite3`；备份 `.bak_funcmigrate`。
 - `migrate --check` EXIT=0、`makemigrations --check` No changes。
@@ -45,6 +49,7 @@ label-studio 1.23.0（官方 + 汉化 + text 分支功能迁移）。Windows，g
 ## 注意事项
 - 前端静态 chunk 名固定，改完需硬刷新。
 - i18next 键路径层级必须与 `t()` 完全一致（静默回退英文）。
+- **en-US.js 的 `pages.create_project.config` 段曾整体错挂在 `projects_page.config` 下**（Config.jsx 全部 22 个 config 键回退中文，2026-08-12 已移正）。以后改 locale 若发现"某段中文/英文错位"，先核对段在对象里的父路径，再查 t() 调用路径。
 - Django 启动时 pypi 超时日志是噪音。
 
 ## 服务器部署（甲方堡垒机，Debian-12-KVM，2026-08-05 上线）

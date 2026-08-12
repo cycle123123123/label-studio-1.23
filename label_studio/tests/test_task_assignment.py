@@ -72,6 +72,34 @@ def test_concurrent_first_assignment_is_serialized(
 
 
 @pytest.mark.django_db
+def test_reassign_preserves_created_at_first_assign_time(business_client, annotator_client, annotator2_client):
+    _join_org(business_client.organization, annotator_client.user)
+    _join_org(business_client.organization, annotator2_client.user)
+    project = make_project(_project_config(), business_client.user, use_ml_backend=False)
+    task = make_task({'data': {'text': 'reassign preserves first assignment time'}}, project)
+
+    assign_result = apply_task_assignments(project, [task.id], annotator_client.user.id, business_client.user)
+    assert assign_result['assigned'] == 1
+    assignment = TaskAssignment.objects.get(task_id=task.id)
+    first_id = assignment.id
+    first_created_at = assignment.created_at
+    assert assignment.user_id == annotator_client.user.id
+    # Create path still stamps created_at: model auto_now_add + bulk_create honors pre_save().
+    assert first_created_at is not None
+
+    reassign_result = apply_task_assignments(
+        project, [task.id], annotator2_client.user.id, business_client.user
+    )
+    assert reassign_result['reassigned'] == 1
+
+    assignment.refresh_from_db()
+    assert assignment.id == first_id
+    assert assignment.user_id == annotator2_client.user.id
+    assert assignment.assigned_by_id == business_client.user.id
+    assert assignment.created_at == first_created_at
+
+
+@pytest.mark.django_db
 def test_assign_tasks_action_creates_assignment_rows(business_client, annotator_client):
     _join_org(business_client.organization, annotator_client.user)
     project = make_project(_project_config(), business_client.user, use_ml_backend=False)

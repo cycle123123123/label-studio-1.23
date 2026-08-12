@@ -20,7 +20,8 @@ from core.utils.serializer_to_openapi_params import serializer_to_openapi_params
 from data_manager.functions import filters_ordering_selected_items_exist, get_prepared_queryset
 from django.conf import settings
 from django.db import IntegrityError
-from django.db.models import Count, F, Q
+from django.db.models import Count, F, OuterRef, Q, Subquery
+from django.db.models.functions import Coalesce
 from django.db.models.functions import TruncDate
 from django.http import Http404, HttpResponse
 from django.utils import timezone
@@ -1046,7 +1047,18 @@ class ProjectAssignmentsAPI(ProjectOrganizationScopedMixin, generics.RetrieveAPI
             except (TypeError, ValueError) as exc:
                 raise RestValidationError({'task_id': 'Invalid task ID'}) from exc
 
-        queryset = queryset.order_by('-created_at')
+        # Order by the latest assignment action time from the audit log (e.g. reassignment),
+        # rather than TaskAssignment.created_at which records the first assignment.
+        latest_action = (
+            TaskAssignmentAuditLog.objects.filter(task_id=OuterRef('task_id'))
+            .order_by('-created_at', '-id')
+            .values('created_at')[:1]
+        )
+        queryset = queryset.annotate(
+            # Coalesce with created_at so audit-log-less rows sort by their (first) assignment time
+            # instead of NULLs-first on Postgres.
+            latest_assigned_at=Coalesce(Subquery(latest_action), F('created_at'))
+        ).order_by('-latest_assigned_at', '-id')
         page = paginator(queryset, request)
         page_queryset = page if page is not None else queryset[:100]
 
@@ -1056,7 +1068,7 @@ class ProjectAssignmentsAPI(ProjectOrganizationScopedMixin, generics.RetrieveAPI
                 'task_inner_id': assignment.task.inner_id,
                 'assignee': self._serialize_user(assignment.user),
                 'assigned_by': self._serialize_user(assignment.assigned_by),
-                'assigned_at': assignment.created_at,
+                'assigned_at': assignment.latest_assigned_at or assignment.created_at,
             }
             for assignment in page_queryset
         ]

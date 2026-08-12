@@ -1589,21 +1589,6 @@ export const TRANSLATIONS_EN = {
         csv_time_series: "Time Series or Whole Text File",
         unsupported_file: 'The filetype of file "{{name}}" is not supported.',
       },
-    },
-    projects_page: {
-      title: "Projects",
-      create_new_project: "Create new project",
-      pagination_label: "Projects",
-      empty: {
-        alt_text: "Heidi looking for projects",
-        title: "Heidi doesn't see any projects here!",
-        subtitle: "Create one and start labeling your data.",
-      },
-      card: {
-        new_project_title: "New project",
-        options_aria_label: "Project options",
-        tasks_completed: "Tasks completed",
-      },
       config: {
         title: "Labeling Interface",
         empty_config_1: "Your labeling configuration is empty. It is required to label your data.",
@@ -1642,6 +1627,22 @@ export const TRANSLATIONS_EN = {
         update_preview: "Update Preview",
         updating: "Updating...",
         delete_label: "delete label",
+        save: "Save",
+      },
+    },
+    projects_page: {
+      title: "Projects",
+      create_new_project: "Create new project",
+      pagination_label: "Projects",
+      empty: {
+        alt_text: "Heidi looking for projects",
+        title: "Heidi doesn't see any projects here!",
+        subtitle: "Create one and start labeling your data.",
+      },
+      card: {
+        new_project_title: "New project",
+        options_aria_label: "Project options",
+        tasks_completed: "Tasks completed",
       },
     },
   },

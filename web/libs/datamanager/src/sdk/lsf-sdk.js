@@ -141,9 +141,15 @@ export class LSFWrapper {
 
     // Listen for overlap error modal events (only when feature flag is enabled)
     if (isFF(FF_FIT_1304_STRICT_OVERLAP)) {
-      this.handleOverlapNextTask = () => this.loadTask();
+      this.handleOverlapNextTask = () => {
+        this.clearExitStreamParam();
+        this.loadTask();
+      };
       this.handleOverlapCloseTask = () => this.closeTask();
-      this.handleOverlapExitStream = () => this.exitStream();
+      this.handleOverlapExitStream = () => {
+        this.clearExitStreamParam();
+        this.exitStream();
+      };
       window.addEventListener("overlap-error-next-task", this.handleOverlapNextTask);
       window.addEventListener("overlap-error-close-task", this.handleOverlapCloseTask);
       window.addEventListener("overlap-error-exit-stream", this.handleOverlapExitStream);
@@ -1043,6 +1049,8 @@ export class LSFWrapper {
   };
 
   onSkipTask = async (_, { comment } = {}) => {
+    this.clearExitStreamParam();
+
     // Prevent skipping if overlap is reached (only when feature flag is enabled)
     if (isFF(FF_FIT_1304_STRICT_OVERLAP) && this.overlapReached) {
       this.showOverlapReachedMessage();
@@ -1312,10 +1320,12 @@ export class LSFWrapper {
   };
 
   onNextTask = async (nextTaskId, nextAnnotationId) => {
+    this.clearExitStreamParam();
     await this.saveDraft();
     await this.loadTask(nextTaskId, nextAnnotationId, true);
   };
   onPrevTask = async (prevTaskId, prevAnnotationId) => {
+    this.clearExitStreamParam();
     await this.saveDraft();
     await this.loadTask(prevTaskId, prevAnnotationId, true);
   };

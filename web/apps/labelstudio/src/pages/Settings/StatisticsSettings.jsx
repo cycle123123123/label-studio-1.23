@@ -7,6 +7,16 @@ import { cn } from "../../utils/bem";
 
 const formatPercent = (value) => `${Number(value ?? 0).toFixed(2)}%`;
 
+const formatLeadTime = (seconds, display) => {
+  if (display) return display;
+  if (seconds === null || seconds === undefined) return "-";
+  const total = Math.max(Number(seconds), 0);
+  const minutes = Math.floor(total / 60);
+  const secs = Math.round(total % 60);
+  if (minutes) return `${minutes}m ${secs}s`;
+  return `${secs}s`;
+};
+
 const MetricCard = ({ title, value, subtitle }) => {
   return (
     <div className={cn("stats-settings").elem("card").toClassName()}>
@@ -85,9 +95,15 @@ export const StatisticsSettings = () => {
         value: activity.today_completed ?? 0,
       },
       {
+        key: "avg_lead_time",
+        title: t("stats_settings.avg_lead_time", "Avg Annotation Time"),
+        value: formatLeadTime(overview.avg_lead_time, overview.avg_lead_time_display),
+      },
+      {
         key: "workflow_rates",
         title: t("stats_settings.workflow_rates", "Workflow Rates"),
         value: `${t("stats_settings.skip_rate", "Skip")}: ${formatPercent(workflow.skip_rate)}`,
+        subtitle: `${t("stats_settings.updated_count", "Updated")}: ${workflow.updated_count ?? 0}`,
       },
     ];
   }, [stats, t]);
@@ -154,6 +170,8 @@ export const StatisticsSettings = () => {
               <tr>
                 <th>{t("stats_settings.actor_col", "Annotator")}</th>
                 <th>{t("stats_settings.completed_col", "Completed")}</th>
+                <th>{t("stats_settings.updated_col", "Updated")}</th>
+                <th>{t("stats_settings.avg_lead_time_col", "Avg Time")}</th>
                 <th>{t("stats_settings.skipped_col", "Skipped")}</th>
                 <th>{t("stats_settings.skip_rate_col", "Skip Rate")}</th>
               </tr>
@@ -163,13 +181,15 @@ export const StatisticsSettings = () => {
                 <tr key={item?.actor?.id ?? `actor-${index}`}>
                   <td>{item?.actor?.display_name ?? "-"}</td>
                   <td>{item.completed ?? 0}</td>
+                  <td>{item.updated ?? 0}</td>
+                  <td>{formatLeadTime(item.avg_lead_time, item.avg_lead_time_display)}</td>
                   <td>{item.skipped ?? 0}</td>
                   <td>{formatPercent(item.skip_rate)}</td>
                 </tr>
               ))}
               {annotators.length === 0 && (
                 <tr>
-                  <td colSpan={4}>{t("stats_settings.empty", "No data")}</td>
+                  <td colSpan={6}>{t("stats_settings.empty", "No data")}</td>
                 </tr>
               )}
             </tbody>

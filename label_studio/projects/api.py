@@ -1223,14 +1223,14 @@ class ProjectAssignmentAuditLogAPI(ProjectOrganizationScopedMixin, generics.Retr
     decorator=extend_schema(
         tags=['Projects'],
         summary='List workflow audit log',
-        description='List annotation workflow audit log entries (submitted/skipped) for the project (project owner only).',
+        description='List annotation workflow audit log entries (submitted/skipped/updated) for the project (project owner only).',
         parameters=[
             OpenApiParameter(
                 name='action',
                 type=OpenApiTypes.STR,
                 location='query',
                 required=False,
-                description='submitted | skipped',
+                description='submitted | skipped | updated',
             ),
             OpenApiParameter(name='actor_id', type=OpenApiTypes.INT, location='query', required=False),
             OpenApiParameter(name='date_from', type=OpenApiTypes.DATE, location='query', required=False),
@@ -1273,6 +1273,7 @@ class ProjectWorkflowAuditLogAPI(ProjectOrganizationScopedMixin, generics.Retrie
         if action in {
             TaskWorkflowAuditLog.ACTION_SUBMITTED,
             TaskWorkflowAuditLog.ACTION_SKIPPED,
+            TaskWorkflowAuditLog.ACTION_UPDATED,
         }:
             queryset = queryset.filter(action=action)
 
@@ -1385,6 +1386,27 @@ class ProjectStatisticsAPI(ProjectOrganizationScopedMixin, generics.RetrieveAPIV
             return 0.0
         return round((numerator / denominator) * 100, 2)
 
+    @staticmethod
+    def _safe_avg(values):
+        values = [value for value in values if value is not None]
+        if not values:
+            return None
+        return round(sum(values) / len(values), 2)
+
+    @staticmethod
+    def _format_seconds(seconds):
+        if seconds is None:
+            return None
+        total = max(float(seconds), 0.0)
+        minutes = int(total // 60)
+        secs = int(round(total % 60))
+        if minutes and secs == 60:
+            minutes += 1
+            secs = 0
+        if minutes:
+            return f'{minutes}m {secs}s'
+        return f'{secs}s'
+
     def get(self, request, *args, **kwargs):
         project = self.get_object()
         self.check_object_permissions(request, project)
@@ -1403,17 +1425,16 @@ class ProjectStatisticsAPI(ProjectOrganizationScopedMixin, generics.RetrieveAPIV
         workflow_qs = TaskWorkflowAuditLog.objects.filter(project=project)
         submitted_count = workflow_qs.filter(action=TaskWorkflowAuditLog.ACTION_SUBMITTED).count()
         skipped_count = workflow_qs.filter(action=TaskWorkflowAuditLog.ACTION_SKIPPED).count()
+        updated_count = workflow_qs.filter(action=TaskWorkflowAuditLog.ACTION_UPDATED).count()
 
         total_workflow_events = submitted_count + skipped_count
         skip_rate = self._safe_rate(skipped_count, total_workflow_events)
 
         today = timezone.localdate()
         date_from = today - timedelta(days=6)
-        annotation_daily_qs = (
-            Annotation.objects.filter(
-                project=project,
-                was_cancelled=False,
-                completed_by_id__isnull=False,
+        activity_daily_qs = (
+            workflow_qs.filter(
+                action__in=(TaskWorkflowAuditLog.ACTION_SUBMITTED, TaskWorkflowAuditLog.ACTION_UPDATED),
                 created_at__date__gte=date_from,
                 created_at__date__lte=today,
             )
@@ -1422,7 +1443,7 @@ class ProjectStatisticsAPI(ProjectOrganizationScopedMixin, generics.RetrieveAPIV
             .annotate(count=Count('id'))
             .order_by('day')
         )
-        daily_map = {item['day']: item['count'] for item in annotation_daily_qs}
+        daily_map = {item['day']: item['count'] for item in activity_daily_qs}
         completion_trend = []
         for day_offset in range(7):
             day = date_from + timedelta(days=day_offset)
@@ -1435,41 +1456,88 @@ class ProjectStatisticsAPI(ProjectOrganizationScopedMixin, generics.RetrieveAPIV
 
         today_completed = daily_map.get(today, 0)
 
-        completed_by_actor = {
-            item['completed_by_id']: item['count']
-            for item in Annotation.objects.filter(
+        # lead_time is overwritten on update; attribute it to the last updater, otherwise author.
+        lead_time_rows = list(
+            Annotation.objects.filter(
+                project=project,
+                was_cancelled=False,
+                lead_time__isnull=False,
+            ).values('id', 'lead_time', 'completed_by_id', 'updated_by_id')
+        )
+        lead_time_by_annotation_id = {item['id']: item['lead_time'] for item in lead_time_rows}
+        avg_lead_time = self._safe_avg(lead_time_by_annotation_id.values())
+
+        lead_times_by_actor = {}
+        for item in lead_time_rows:
+            owner_id = item['updated_by_id'] or item['completed_by_id']
+            if not owner_id:
+                continue
+            lead_times_by_actor.setdefault(owner_id, []).append(item['lead_time'])
+
+        # Pre-annotation imports set completed_by to the importer; member work is mostly
+        # ACTION_UPDATED. Credit annotators for distinct annotations they authored or updated.
+        completed_annotation_ids_by_actor = {}
+        for item in (
+            Annotation.objects.filter(
                 project=project,
                 was_cancelled=False,
                 completed_by_id__isnull=False,
             )
-            .values('completed_by_id')
-            .annotate(count=Count('id'))
-        }
+            .values('completed_by_id', 'id')
+        ):
+            completed_annotation_ids_by_actor.setdefault(item['completed_by_id'], set()).add(item['id'])
+
+        updated_annotation_ids_by_actor = {}
+        for item in (
+            workflow_qs.filter(
+                action=TaskWorkflowAuditLog.ACTION_UPDATED,
+                actor_id__isnull=False,
+                annotation_id__isnull=False,
+            ).values('actor_id', 'annotation_id')
+        ):
+            updated_annotation_ids_by_actor.setdefault(item['actor_id'], set()).add(item['annotation_id'])
+
         workflow_by_actor = {
             item['actor_id']: {
                 'skipped': item['skipped'],
+                'updated': item['updated'],
             }
             for item in workflow_qs.filter(actor_id__isnull=False)
             .values('actor_id')
             .annotate(
                 skipped=Count('id', filter=Q(action=TaskWorkflowAuditLog.ACTION_SKIPPED)),
+                updated=Count('id', filter=Q(action=TaskWorkflowAuditLog.ACTION_UPDATED)),
             )
         }
 
-        actor_ids = set(completed_by_actor.keys()) | set(workflow_by_actor.keys())
+        actor_ids = (
+            set(completed_annotation_ids_by_actor.keys())
+            | set(updated_annotation_ids_by_actor.keys())
+            | set(workflow_by_actor.keys())
+            | set(lead_times_by_actor.keys())
+        )
         users_by_id = User.objects.in_bulk(actor_ids)
 
         annotator_stats = []
         for actor_id in actor_ids:
             user = users_by_id.get(actor_id)
-            completed = completed_by_actor.get(actor_id, 0)
+            credited_annotation_ids = (
+                completed_annotation_ids_by_actor.get(actor_id, set())
+                | updated_annotation_ids_by_actor.get(actor_id, set())
+            )
+            completed = len(credited_annotation_ids)
             skipped = workflow_by_actor.get(actor_id, {}).get('skipped', 0)
+            updated = workflow_by_actor.get(actor_id, {}).get('updated', 0)
             handled = completed + skipped
+            actor_avg_lead_time = self._safe_avg(lead_times_by_actor.get(actor_id, []))
             annotator_stats.append(
                 {
                     'actor': self._serialize_user(user),
                     'completed': completed,
                     'skipped': skipped,
+                    'updated': updated,
+                    'avg_lead_time': actor_avg_lead_time,
+                    'avg_lead_time_display': self._format_seconds(actor_avg_lead_time),
                     'skip_rate': self._safe_rate(skipped, handled),
                 }
             )
@@ -1489,6 +1557,8 @@ class ProjectStatisticsAPI(ProjectOrganizationScopedMixin, generics.RetrieveAPIV
                     'completed_tasks': completed_tasks,
                     'pending_tasks': pending_tasks,
                     'completion_rate': self._safe_rate(completed_tasks, total_tasks),
+                    'avg_lead_time': avg_lead_time,
+                    'avg_lead_time_display': self._format_seconds(avg_lead_time),
                 },
                 'assignment': {
                     'assigned_tasks': assigned_tasks,
@@ -1498,6 +1568,7 @@ class ProjectStatisticsAPI(ProjectOrganizationScopedMixin, generics.RetrieveAPIV
                 'workflow': {
                     'submitted_count': submitted_count,
                     'skipped_count': skipped_count,
+                    'updated_count': updated_count,
                     'skip_rate': skip_rate,
                 },
                 'activity': {

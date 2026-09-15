@@ -118,7 +118,7 @@ def get_all_columns(project, *_):
             'title': '已完成',
             'type': 'Datetime',
             'target': 'tasks',
-            'help': '最后标注日期',
+            'help': '最后完成标注时间（含更新）',
             'visibility_defaults': {'explore': True, 'labeling': False},
             'project_defined': False,
         },

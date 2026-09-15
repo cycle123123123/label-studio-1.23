@@ -674,10 +674,12 @@ class TaskAssignmentAuditLog(models.Model):
 class TaskWorkflowAuditLog(models.Model):
     ACTION_SUBMITTED = 'submitted'
     ACTION_SKIPPED = 'skipped'
+    ACTION_UPDATED = 'updated'
 
     ACTION_CHOICES = [
         (ACTION_SUBMITTED, 'Submitted'),
         (ACTION_SKIPPED, 'Skipped'),
+        (ACTION_UPDATED, 'Updated'),
     ]
 
     project = models.ForeignKey(

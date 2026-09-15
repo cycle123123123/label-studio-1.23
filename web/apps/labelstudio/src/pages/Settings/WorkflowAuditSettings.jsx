@@ -73,6 +73,7 @@ export const WorkflowAuditSettings = () => {
     (action) => {
       if (action === "submitted") return t("workflow_audit_settings.action_submitted", "Submitted");
       if (action === "skipped") return t("workflow_audit_settings.action_skipped", "Skipped");
+      if (action === "updated") return t("workflow_audit_settings.action_updated", "Updated");
       return action;
     },
     [t],
@@ -119,6 +120,7 @@ export const WorkflowAuditSettings = () => {
               <option value="">{t("workflow_audit_settings.all_actions", "All Actions")}</option>
               <option value="submitted">{t("workflow_audit_settings.action_submitted", "Submitted")}</option>
               <option value="skipped">{t("workflow_audit_settings.action_skipped", "Skipped")}</option>
+              <option value="updated">{t("workflow_audit_settings.action_updated", "Updated")}</option>
             </select>
 
             <select

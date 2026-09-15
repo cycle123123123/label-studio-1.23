@@ -627,7 +627,7 @@ def test_project_statistics_api_returns_aggregated_metrics(business_client, anno
 
     submit_response = annotator_client.post(
         f'/api/tasks/{task2.id}/annotations/',
-        data={'result': [], 'was_cancelled': False, 'unique_id': str(uuid.uuid4())},
+        data={'result': [], 'was_cancelled': False, 'unique_id': str(uuid.uuid4()), 'lead_time': 42.5},
     )
     assert submit_response.status_code == 201
 
@@ -636,16 +636,21 @@ def test_project_statistics_api_returns_aggregated_metrics(business_client, anno
 
     payload = response.json()
     assert payload['overview']['total_tasks'] == 2
+    assert payload['overview']['avg_lead_time'] == 42.5
+    assert payload['overview']['avg_lead_time_display'] == '42s'
     assert payload['assignment']['assigned_tasks'] == 2
     assert payload['workflow']['submitted_count'] == 1
     assert payload['workflow']['skipped_count'] == 1
+    assert payload['workflow']['updated_count'] == 0
     assert len(payload['activity']['completion_trend']) == 7
 
     actor_rows = [item for item in payload['annotators'] if item.get('actor', {}).get('id') == annotator_client.user.id]
     assert actor_rows
     assert actor_rows[0]['completed'] == 1
     assert actor_rows[0]['skipped'] == 1
-
+    assert actor_rows[0]['updated'] == 0
+    assert actor_rows[0]['avg_lead_time'] == 42.5
+    assert actor_rows[0]['avg_lead_time_display'] == '42s'
 
 @pytest.mark.django_db
 def test_skipped_annotation_does_not_block_later_regular_submission(business_client, annotator_client):

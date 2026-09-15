@@ -556,8 +556,9 @@ class GroupConcat(Aggregate):
 def newest_annotation_subquery() -> Subquery:
     from tasks.models import Annotation
 
-    newest_annotations = Annotation.objects.filter(task=OuterRef('pk')).order_by('-id')[:1]
-    return Subquery(newest_annotations.values('created_at'))
+    # Use updated_at so member re-submits refresh DM "completed_at" / last annotation time.
+    newest_annotations = Annotation.objects.filter(task=OuterRef('pk')).order_by('-updated_at', '-id')[:1]
+    return Subquery(newest_annotations.values('updated_at'))
 
 
 def base_annotate_completed_at(queryset: TaskQuerySet) -> TaskQuerySet:

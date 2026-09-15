@@ -580,8 +580,9 @@ def get_workflow_audit_action(annotation):
     return TaskWorkflowAuditLog.ACTION_SUBMITTED
 
 
-def create_workflow_audit(task, annotation, actor):
-    action = get_workflow_audit_action(annotation)
+def create_workflow_audit(task, annotation, actor, action=None):
+    if action is None:
+        action = get_workflow_audit_action(annotation)
 
     return TaskWorkflowAuditLog.objects.create(
         project_id=task.project_id,
@@ -709,8 +710,13 @@ class AnnotationAPI(AssignmentScopedTaskObjectMixin, generics.RetrieveUpdateDest
 
             task.update_is_labeled()
             task.save()  # refresh task metrics
-            if get_workflow_audit_action(annotation) != previous_workflow_action:
-                create_workflow_audit(task, annotation, request.user)
+            new_workflow_action = get_workflow_audit_action(annotation)
+            if new_workflow_action != previous_workflow_action:
+                create_workflow_audit(task, annotation, request.user, action=new_workflow_action)
+            else:
+                create_workflow_audit(
+                    task, annotation, request.user, action=TaskWorkflowAuditLog.ACTION_UPDATED
+                )
 
         return Response(serializer.data)
 

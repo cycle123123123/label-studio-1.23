@@ -358,7 +358,10 @@ const AnnotationStoreModel = types
         return [
           ...results,
           ...prediction._initialAnnotationObj
-            .filter((result) => result.interactive_mode === false)
+            // `interactive_mode` is only set on results produced by interactive
+            // pre-labeling; imported/ML predictions omit it, and those must
+            // still prefill a new annotation.
+            .filter((result) => result.interactive_mode !== true)
             .map((r) => ({ ...r })),
         ];
       }, []);

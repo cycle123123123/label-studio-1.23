@@ -926,7 +926,18 @@ export default types
         // reversing the list caused problems before when task is reloaded and list is reversed again.
         // AnnotationsCarousel has its own ordering anyway, so we just keep technical order
         // as simple as possible.
-        const current = as.annotations.at(-1);
+        // Cross-validation: prefer the current user's own annotation, then the
+        // task prediction (selecting it shows its prefilled values and Submit
+        // creates a NEW annotation of our own). Only fall back to the last
+        // annotation, and never select someone else's as "ours": when the task
+        // carries other people's annotations but none of ours, start a fresh
+        // one instead.
+        const currentUserId = self.user?.id;
+        const ownAnnotation = currentUserId
+          ? as.annotations.find((a) => Number(a.user?.id ?? -1) === Number(currentUserId))
+          : undefined;
+
+        const current = ownAnnotation ?? as.annotations.at(-1);
         const currentPrediction = !current && as.predictions.at(-1);
 
         if (current) {
@@ -936,6 +947,16 @@ export default types
           current.reinitHistory();
         } else if (currentPrediction) {
           as.selectPrediction(currentPrediction.id);
+        }
+
+        if (!ownAnnotation && as.annotations.length > 0) {
+          // Someone else's annotation exists but none of ours: start our own
+          // (empty, or prefilled from predictions) so Submit POSTs a new
+          // annotation instead of PATCHing theirs.
+          const own = as.createAnnotation();
+
+          as.selectAnnotation(own.id);
+          own.reinitHistory();
         }
 
         // annotation history is set when annotation is selected,
@@ -961,7 +982,18 @@ export default types
           obj.reinitHistory();
         });
 
-        const current = as.annotations.at(-1);
+        // Same own-annotation preference as in the simpleInit branch above.
+        const currentUserId = self.user?.id;
+        const ownAnnotation = currentUserId
+          ? as.annotations.find((a) => Number(a.user?.id ?? -1) === Number(currentUserId))
+          : undefined;
+
+        let current = ownAnnotation ?? as.annotations.at(-1);
+
+        if (!ownAnnotation && as.annotations.length > 0) {
+          current = as.createAnnotation();
+          as.selectAnnotation(current.id);
+        }
 
         if (current) current.setInitialValues();
 

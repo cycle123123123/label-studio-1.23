@@ -72,3 +72,24 @@ label-studio 1.23.0（官方 + 汉化 + text 分支功能迁移）。Windows，g
 - **数据目录权限**：`mkdir -p mydata && chown -R 1001:0 mydata`（容器 UID 1001），否则 `PermissionError: /label-studio/data/media`。
 - **8080 404 排查链**：nginx 正常 → 确认 app 是否监听（app 容器**无 `ss`**，用 `curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/`，302=正常跳转；migrate 未完成时 NOT_LISTENING，等几分钟即可）。
 - 历史参考：7/28 Codex 会话 `019fa914-2df8-74b2-bb2d-ecc78ce73314` 记录了 B 版部署全过程（同款坑）。
+
+## 交叉标注工作流（2026-10-14，本机已验证）
+
+需求：20% 剧照三人独立标注（少数服从多数线下人工做）、其余 80% 单人；严格分配模式不变。
+
+### 三块改动
+1. **后端：TaskAssignment 一对多**（迁移 0064）。`task` OneToOne→FK（`related_name='assignments'`）+ `UniqueConstraint(task,user)`；`apply_task_assignments(project, task_ids, assignee_ids(list|兼容int), user)` 语义=追加/移除（返回 `{changed,assigned,removed}`，不再有 reassigned）；`can_user_access_task`/`filter_task_related_queryset_for_user`/`TaskSerializer.get_assigned_task` 均改多行查询；DM `annotate_assignee` 用双 Subquery（原 Coalesce join 在 FK 下会裂行）；`POST /api/projects/:id/assignments/` 收 `assignees` 列表（兼容旧 `assignee`）；统计 assigned_tasks 按 task 去重；DM assign_tasks action 单选=替换全部。
+2. **后端：标注作者校验**。`AnnotationAPI._check_annotation_author`：仅当标注作者**本人也是该 task 分配者**时禁止他人修改（保护交叉标注同伴）；导入标注（作者非分配者）保持可编辑以兼容 B 版「导入后继续标注」流；owner/staff 豁免。
+3. **前端：编辑器默认选中逻辑**（`web/libs/editor/src/stores/AppStore.js` `initializeStore` 两个分支）。优先级：自己的标注 → **预测**（预填、提交=POST 新建自己的）→ 只有别人的标注则 `as.createAnnotation()` 新开空白 → 维持现状。另放宽 `Annotation/store.js findNonInteractivePredictionResults` 过滤为 `interactive_mode !== true`（导入/ML 预测无此标记，原 `=== false` 会把预填滤空——这就是「+ 新建标注永远是空白」的原因）。
+
+### 数据流（脚本，均在 `scripts/`）
+- `make_cross_prelabels.py`：把项目导入标注转成 `Prediction(model_version='prelabel')`（幂等）+ 可选 `--delete-source` 删导入标注。**必须先备份**（导出 JSON + SQLite）。注意：导入行的 `result_count` 字段不可信（未计算），排序取内容要用 `len(a.result)`。
+- `make_cross_copies.py`：副本方案生成器（已弃用未删，本地验证过；OSS 导入不按 data 去重）。弃用原因：OSS DM 列表**不暴露 meta 字段**（`/api/dm/columns` 无 meta），副本分组在界面上不可见。
+- 抽样：inner_id 每 5 取 1（143/713），交叉任务 `assignees=[3人]`。
+
+### 验证结论（本机 project 1，2026-10-14）
+- 3 账号各自提交 → 同 task 3 条 annotation、`completed_by` 各自正确、prediction 不被修改；
+- 同伴改他人标注 403、改自己 200；未分配访问 403（严格分配边界不破坏）；
+- 项目最终态：713 任务 / 0 标注 / 713 prelabel 预测；分配行 = 交叉 143×3 + 单人 570。
+- 测试：`tests/test_task_assignment.py`（含新增 `test_multi_assignee_annotation_isolation_and_author_check`）+ standalone + next_task + annotations 全绿；`yarn ls:build` 通过。
+- 坑：pytest POST annotations 传 dict 走 multipart，result 列表必须 `json.dumps` + `content_type='application/json'`；Windows 下 Edit 工具写 JS 产生 LF，biome format 会报错，需 `biome check --write` 修行尾；沙箱内跑 `yarn ls:build` 会被「批量删除 dist」保护拦截，需沙箱外执行。

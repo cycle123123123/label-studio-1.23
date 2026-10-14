@@ -8,6 +8,7 @@ import { cn } from "../../utils/bem";
 import { Pagination } from "../../components/Pagination/Pagination";
 
 const PAGE_SIZE = 50;
+const MAX_RANGE_SPAN = 5000;
 
 export const AssignmentSettings = () => {
   const { t } = useTranslation();
@@ -16,6 +17,7 @@ export const AssignmentSettings = () => {
   const [members, setMembers] = useState([]);
   const [canManage, setCanManage] = useState(false);
   const [assignees, setAssignees] = useState([]);
+  const [memberFilter, setMemberFilter] = useState("");
   const [taskIdsInput, setTaskIdsInput] = useState("");
   const [assignments, setAssignments] = useState([]);
   const [assignmentCount, setAssignmentCount] = useState(0);
@@ -32,12 +34,36 @@ export const AssignmentSettings = () => {
   const auditRequestSequence = useRef(0);
   const loading = assignmentLoading || auditLoading || mutationLoading;
 
-  const normalizedTaskIds = useMemo(() => {
-    const ids = (taskIdsInput || "")
-      .split(/[\s,]+/)
-      .map((value) => Number(value))
-      .filter((value) => Number.isInteger(value) && value > 0);
-    return [...new Set(ids)];
+  // Accepts "12, 13, 20-30" style input (comma / space / semicolon separated,
+  // ranges with - ~ 至), which makes bulk assignment of hundreds of tasks easy.
+  const { taskIds: normalizedTaskIds, invalidTokens } = useMemo(() => {
+    const ids = new Set();
+    const invalid = [];
+    const tokens = (taskIdsInput || "").split(/[\s,，;；]+/).filter(Boolean);
+
+    for (const token of tokens) {
+      const range = token.match(/^(\d+)\s*[-~至]\s*(\d+)$/);
+
+      if (range) {
+        const a = Number(range[1]);
+        const b = Number(range[2]);
+        const [start, end] = a <= b ? [a, b] : [b, a];
+
+        if (end - start > MAX_RANGE_SPAN) {
+          invalid.push(token);
+          continue;
+        }
+        for (let id = start; id <= end; id += 1) ids.add(id);
+        continue;
+      }
+
+      const value = Number(token);
+
+      if (Number.isInteger(value) && value > 0) ids.add(value);
+      else invalid.push(token);
+    }
+
+    return { taskIds: [...ids].sort((a, b) => a - b), invalidTokens: invalid };
   }, [taskIdsInput]);
 
   const actionDisplay = useCallback(
@@ -93,7 +119,20 @@ export const AssignmentSettings = () => {
     fetchAuditLogs(auditPage);
   }, [auditPage, fetchAuditLogs, refreshVersion]);
 
-  const applyAssignment = async () => {
+  const toggleAssignee = (memberId) => {
+    setAssignees((current) =>
+      current.includes(memberId) ? current.filter((id) => id !== memberId) : [...current, memberId],
+    );
+  };
+
+  const filteredMembers = useMemo(() => {
+    const needle = (memberFilter || "").trim().toLowerCase();
+
+    if (!needle) return members;
+    return members.filter((member) => (member.display_name || "").toLowerCase().includes(needle));
+  }, [members, memberFilter]);
+
+  const applyAssignment = async (nextAssignees = assignees) => {
     if (!project?.id || normalizedTaskIds.length === 0) return;
 
     setMutationLoading(true);
@@ -102,7 +141,7 @@ export const AssignmentSettings = () => {
       const response = await api.callApi("updateProjectAssignments", {
         params: { pk: project.id },
         body: {
-          assignees,
+          assignees: nextAssignees,
           task_ids: normalizedTaskIds,
         },
       });
@@ -128,42 +167,120 @@ export const AssignmentSettings = () => {
           <p className="settings-description">
             {t(
               "assignment_settings.bulk_desc",
-              "Input task IDs separated by comma or spaces, then select one or more assignees. An empty selection unassigns the tasks.",
+              "Input task IDs (comma / space separated, ranges allowed: 1-10), then tick the annotators to assign.",
             )}
           </p>
-          <div className={cn("assignment-settings").elem("controls").toClassName()}>
-            <select
-              multiple
-              value={assignees.map(String)}
-              onChange={(event) => {
-                const selected = Array.from(event.target.selectedOptions, (option) => Number(option.value));
-                setAssignees(selected);
-              }}
-              disabled={!canManage || loading}
-              aria-label={t("assignment_settings.assignee_select_aria", "Assignees")}
-              size={Math.min(Math.max(members.length + 1, 3), 8)}
-            >
-              {members.map((member) => (
-                <option key={member.id} value={String(member.id)}>
-                  {member.display_name}
-                </option>
-              ))}
-            </select>
-            <input
-              type="text"
-              value={taskIdsInput}
-              onChange={(event) => setTaskIdsInput(event.target.value)}
-              placeholder={t("assignment_settings.task_ids_placeholder", "e.g. 12, 13, 20")}
-              disabled={!canManage || loading}
-            />
-            <Button
-              onClick={applyAssignment}
-              disabled={!canManage || loading || normalizedTaskIds.length === 0}
-              aria-label={t("assignment_settings.apply_aria", "Apply assignment")}
-            >
-              {t("assignment_settings.apply", "Apply")}
-            </Button>
+
+          <div className={cn("assignment-settings").elem("panel").toClassName()}>
+            <div className={cn("assignment-settings").elem("field").toClassName()}>
+              <label htmlFor="assignment-task-ids">
+                {t("assignment_settings.task_ids_label", "Task IDs (DM “ID” column)")}
+              </label>
+              <input
+                id="assignment-task-ids"
+                type="text"
+                value={taskIdsInput}
+                onChange={(event) => setTaskIdsInput(event.target.value)}
+                placeholder={t("assignment_settings.task_ids_placeholder", "e.g. 12, 13, 20-30")}
+                disabled={!canManage || loading}
+              />
+              <p className={cn("assignment-settings").elem("hint").toClassName()}>
+                {t("assignment_settings.task_ids_hint", "Ranges supported: 1-10, or mixed like 1,3,5-8")}
+              </p>
+              {normalizedTaskIds.length > 0 && (
+                <p className={cn("assignment-settings").elem("hint").toClassName()}>
+                  {t("assignment_settings.parsed_count", "Matched {{count}} tasks", {
+                    count: normalizedTaskIds.length,
+                  })}
+                  {normalizedTaskIds.length <= 20 ? `: ${normalizedTaskIds.join(", ")}` : ""}
+                </p>
+              )}
+              {invalidTokens.length > 0 && (
+                <p className={cn("assignment-settings").elem("warning").toClassName()}>
+                  {t("assignment_settings.invalid_tokens", "Ignored invalid input: {{tokens}}", {
+                    tokens: invalidTokens.join(", "),
+                  })}
+                </p>
+              )}
+            </div>
+
+            <div className={cn("assignment-settings").elem("field").toClassName()}>
+              <label htmlFor="assignment-members">
+                {t("assignment_settings.assignees_label", "Assignees (multi-select)")}
+              </label>
+              {members.length > 6 && (
+                <input
+                  type="search"
+                  value={memberFilter}
+                  onChange={(event) => setMemberFilter(event.target.value)}
+                  placeholder={t("assignment_settings.member_filter_placeholder", "Filter members")}
+                  disabled={loading}
+                />
+              )}
+              <div
+                className={cn("assignment-settings").elem("members").toClassName()}
+                id="assignment-members"
+                role="group"
+              >
+                {filteredMembers.map((member) => (
+                  <label
+                    key={member.id}
+                    className={cn("assignment-settings").elem("member").toClassName()}
+                    data-checked={assignees.includes(member.id)}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={assignees.includes(member.id)}
+                      onChange={() => toggleAssignee(member.id)}
+                      disabled={!canManage || loading}
+                    />
+                    <span>{member.display_name}</span>
+                  </label>
+                ))}
+                {filteredMembers.length === 0 && (
+                  <p className={cn("assignment-settings").elem("hint").toClassName()}>
+                    {t("assignment_settings.no_members", "No members found")}
+                  </p>
+                )}
+              </div>
+              <div className={cn("assignment-settings").elem("member_actions").toClassName()}>
+                <button
+                  type="button"
+                  onClick={() => setAssignees(filteredMembers.map((member) => member.id))}
+                  disabled={!canManage || loading}
+                >
+                  {t("assignment_settings.select_all", "Select all")}
+                </button>
+                <button type="button" onClick={() => setAssignees([])} disabled={!canManage || loading}>
+                  {t("assignment_settings.clear_selection", "Clear")}
+                </button>
+                <span className={cn("assignment-settings").elem("hint").toClassName()}>
+                  {t("assignment_settings.selected_count", "{{count}} selected", { count: assignees.length })}
+                </span>
+              </div>
+            </div>
+
+            <div className={cn("assignment-settings").elem("actions").toClassName()}>
+              <Button
+                onClick={() => applyAssignment(assignees)}
+                disabled={!canManage || loading || normalizedTaskIds.length === 0 || assignees.length === 0}
+                aria-label={t("assignment_settings.apply_aria", "Apply assignment")}
+              >
+                {t("assignment_settings.apply_to_selected", "Assign to {{count}} annotator(s)", {
+                  count: assignees.length,
+                })}
+              </Button>
+              <Button
+                look="outlined"
+                onClick={() => applyAssignment([])}
+                disabled={!canManage || loading || normalizedTaskIds.length === 0 || assignees.length === 0}
+                aria-label={t("assignment_settings.unassign_aria", "Unassign tasks")}
+              >
+                {t("assignment_settings.unassign", "Unassign these tasks")}
+              </Button>
+            </div>
           </div>
+
           {!canManage && (
             <p className="settings-description">
               {t("assignment_settings.permission_hint", "Only project owner can manage task assignment.")}

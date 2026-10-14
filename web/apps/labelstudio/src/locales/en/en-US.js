@@ -859,6 +859,7 @@ export const TRANSLATIONS_EN = {
     assignee_select_aria: "Assignees (multi-select)",
     operation_done: "Operation completed",
     permission_hint: "Only project owner can manage task assignment.",
+    export_csv: "Export CSV",
     current_title: "Current Assignment Records",
     audit_title: "Audit Logs",
     task_col: "Task",

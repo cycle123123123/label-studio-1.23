@@ -1020,6 +1020,8 @@ class ProjectAssignmentsAPI(ProjectOrganizationScopedMixin, generics.RetrieveAPI
         POST=all_permissions.projects_change,
     )
     queryset = Project.objects.all()
+    # CSVRenderer is required so `?format=csv` survives DRF content negotiation
+    renderer_classes = [JSONRenderer, CSVRenderer]
 
     @staticmethod
     def _serialize_user(user):
@@ -1032,6 +1034,60 @@ class ProjectAssignmentsAPI(ProjectOrganizationScopedMixin, generics.RetrieveAPI
             'display_name': display,
             'email': user.email,
         }
+
+    @staticmethod
+    def _user_display(user):
+        full_name = user.get_full_name().strip()
+        return full_name or user.username or user.email or f'User {user.id}'
+
+    @staticmethod
+    def _csv_response(project, queryset):
+        """CSV export of the current assignment records (browser-downloadable)."""
+        response = HttpResponse(content_type='text/csv; charset=utf-8')
+        response['Content-Disposition'] = f'attachment; filename="project_{project.id}_assignments.csv"'
+        response.write('\ufeff')
+        writer = csv.writer(response)
+        writer.writerow(
+            [
+                'task_id',
+                'task_inner_id',
+                'assignee',
+                'assignee_email',
+                'assigned_by',
+                'assigned_at',
+                'assignees_on_task',
+                'role',
+            ]
+        )
+
+        counts = dict(
+            TaskAssignment.objects.filter(task__project=project)
+            .values_list('task_id')
+            .annotate(total=Count('id'))
+        )
+
+        for assignment in queryset:
+            total = counts.get(assignment.task_id, 0)
+            assignee_display = ProjectAssignmentsAPI._user_display(assignment.user) if assignment.user else ''
+            assignee_email = assignment.user.email if assignment.user else ''
+            assigned_by_display = (
+                ProjectAssignmentsAPI._user_display(assignment.assigned_by) if assignment.assigned_by else ''
+            )
+            assigned_at = getattr(assignment, 'latest_assigned_at', None) or assignment.created_at
+            writer.writerow(
+                [
+                    assignment.task_id,
+                    assignment.task.inner_id if assignment.task_id else '',
+                    assignee_display,
+                    assignee_email,
+                    assigned_by_display,
+                    assigned_at.isoformat() if assigned_at else '',
+                    total,
+                    'cross' if total > 1 else 'single',
+                ]
+            )
+
+        return response
 
     def get(self, request, *args, **kwargs):
         project = self.get_object()
@@ -1067,6 +1123,11 @@ class ProjectAssignmentsAPI(ProjectOrganizationScopedMixin, generics.RetrieveAPI
             # instead of NULLs-first on Postgres.
             latest_assigned_at=Coalesce(Subquery(latest_action), F('created_at'))
         ).order_by('-latest_assigned_at', '-id')
+
+        if request.GET.get('format') == 'csv':
+            # Export every matching record, not just the current page.
+            return self._csv_response(project, queryset)
+
         page = paginator(queryset, request)
         page_queryset = page if page is not None else queryset[:100]
 
@@ -1183,6 +1244,7 @@ class ProjectAssignmentAuditLogAPI(ProjectOrganizationScopedMixin, generics.Retr
         GET=all_permissions.projects_view,
     )
     queryset = Project.objects.all()
+    renderer_classes = [JSONRenderer, CSVRenderer]
 
     @staticmethod
     def _serialize_user(user):
@@ -1195,6 +1257,12 @@ class ProjectAssignmentAuditLogAPI(ProjectOrganizationScopedMixin, generics.Retr
             'display_name': display,
             'email': user.email,
         }
+
+    @staticmethod
+    def _user_display(user):
+        # Prefer the email in CSV exports: it is the identifier users are known by.
+        full_name = user.get_full_name().strip()
+        return full_name or user.email or user.username or f'User {user.id}'
 
     def get(self, request, *args, **kwargs):
         project = self.get_object()
@@ -1222,6 +1290,32 @@ class ProjectAssignmentAuditLogAPI(ProjectOrganizationScopedMixin, generics.Retr
             queryset = queryset.filter(action=action)
 
         queryset = queryset.order_by('-created_at')
+
+        if request.GET.get('format') == 'csv':
+            response = HttpResponse(content_type='text/csv; charset=utf-8')
+            response['Content-Disposition'] = f'attachment; filename="project_{project.id}_assignment_audit.csv"'
+            response.write('\ufeff')
+            writer = csv.writer(response)
+            writer.writerow(
+                ['id', 'task_id', 'task_inner_id', 'action', 'assignee', 'previous_assignee', 'assigned_by', 'created_at']
+            )
+            for item in queryset:
+                writer.writerow(
+                    [
+                        item.id,
+                        item.task_id,
+                        item.task.inner_id if item.task_id else '',
+                        item.action,
+                        ProjectAssignmentAuditLogAPI._user_display(item.assignee) if item.assignee else '',
+                        ProjectAssignmentAuditLogAPI._user_display(item.previous_assignee)
+                        if item.previous_assignee
+                        else '',
+                        ProjectAssignmentAuditLogAPI._user_display(item.assigned_by) if item.assigned_by else '',
+                        item.created_at.isoformat() if item.created_at else '',
+                    ]
+                )
+            return response
+
         page = paginator(queryset, request)
         page_queryset = page if page is not None else queryset[:100]
 

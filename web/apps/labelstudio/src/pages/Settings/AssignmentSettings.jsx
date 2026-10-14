@@ -6,6 +6,7 @@ import { useAPI } from "../../providers/ApiProvider";
 import { useProject } from "../../providers/ProjectProvider";
 import { cn } from "../../utils/bem";
 import { Pagination } from "../../components/Pagination/Pagination";
+import { absoluteURL } from "../../utils/helpers";
 
 const PAGE_SIZE = 50;
 const MAX_RANGE_SPAN = 5000;
@@ -131,6 +132,14 @@ export const AssignmentSettings = () => {
     if (!needle) return members;
     return members.filter((member) => (member.display_name || "").toLowerCase().includes(needle));
   }, [members, memberFilter]);
+
+  const exportCsv = useCallback(
+    (endpoint) => {
+      if (!project?.id) return;
+      window.open(absoluteURL(`/api/projects/${project.id}/${endpoint}/?format=csv`), "_blank", "noopener,noreferrer");
+    },
+    [project?.id],
+  );
 
   const applyAssignment = async (nextAssignees = assignees) => {
     if (!project?.id || normalizedTaskIds.length === 0) return;
@@ -293,6 +302,11 @@ export const AssignmentSettings = () => {
           <h3>
             {t("assignment_settings.current_title", "Current Assignment Records")} ({assignmentCount})
           </h3>
+          <div className={cn("assignment-settings").elem("table_actions").toClassName()}>
+            <Button look="outlined" onClick={() => exportCsv("assignments")} disabled={!project?.id || loading}>
+              {t("assignment_settings.export_csv", "Export CSV")}
+            </Button>
+          </div>
           <table className={cn("assignment-settings").elem("table").toClassName()}>
             <thead>
               <tr>
@@ -334,6 +348,11 @@ export const AssignmentSettings = () => {
           <h3>
             {t("assignment_settings.audit_title", "Audit Logs")} ({auditCount})
           </h3>
+          <div className={cn("assignment-settings").elem("table_actions").toClassName()}>
+            <Button look="outlined" onClick={() => exportCsv("assignment-audit")} disabled={!project?.id || loading}>
+              {t("assignment_settings.export_csv", "Export CSV")}
+            </Button>
+          </div>
           <table className={cn("assignment-settings").elem("table").toClassName()}>
             <thead>
               <tr>

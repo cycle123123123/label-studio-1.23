@@ -2187,6 +2187,7 @@ export const TRANSLATIONS_ZH = {
     assignee_select_aria: "选择标注员（可多选）",
     operation_done: "操作已完成",
     permission_hint: "仅项目创建者可以管理任务分配。",
+    export_csv: "导出 CSV",
     current_title: "当前分配记录",
     audit_title: "分配审计日志",
     task_col: "任务",

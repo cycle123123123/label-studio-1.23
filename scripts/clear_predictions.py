@@ -26,8 +26,11 @@ def parse_args():
     parser.add_argument('--model-version', default='prelabel', help='Only touch predictions with this model_version')
     parser.add_argument('--all-versions', action='store_true', help='Ignore --model-version and touch every prediction')
     parser.add_argument('--task-ids', default='', help='Limit to these task ids / ranges, e.g. 5010,5015-5020')
-    parser.add_argument('--mode', choices=['empty', 'delete'], default='empty',
-                        help='empty = result set to [] (row kept), delete = remove the prediction rows')
+    parser.add_argument('--mode', choices=['empty', 'delete', 'filter'], default='empty',
+                        help='empty = result set to [] , delete = remove rows, filter = keep only matching results')
+    parser.add_argument('--keep-types', default='', help='With --mode filter: keep only these result types, e.g. rectanglelabels')
+    parser.add_argument('--keep-labels', default='',
+                        help='With --mode filter: keep only boxes carrying these labels (comma separated)')
     parser.add_argument('--dry-run', action='store_true')
     parser.add_argument('--yes', action='store_true', help='Confirm the write')
     return parser.parse_args()
@@ -63,12 +66,17 @@ def main():
 
     total = queryset.count()
     with_result = queryset.exclude(result=[]).count()
+    keep_types = {t.strip() for t in args.keep_types.split(',') if t.strip()}
+    keep_labels = {l.strip() for l in args.keep_labels.split(',') if l.strip()}
     print(f'Project                 : {project.id} - {project.title}')
     print(f'Model version filter    : {"(all)" if args.all_versions else args.model_version}')
     print(f'Task filter             : {task_ids[:10]}{"..." if len(task_ids) > 10 else ""}' if task_ids else 'Task filter             : (all tasks)')
     print(f'Predictions matched     : {total}')
     print(f'  with non-empty result : {with_result}')
     print(f'Mode                    : {args.mode}')
+    if args.mode == 'filter':
+        print(f'  keep types            : {sorted(keep_types) or "(any)"}')
+        print(f'  keep labels           : {sorted(keep_labels) or "(any)"}')
 
     if args.dry_run:
         print('Dry run: nothing written')
@@ -82,6 +90,25 @@ def main():
         deleted, _ = queryset.delete()
         remaining = Prediction.objects.filter(project=project).count()
         print(f'Deleted {deleted} predictions. Remaining in project: {remaining}')
+    elif args.mode == 'filter':
+        updated = 0
+        samples = []
+        for prediction in queryset.iterator():
+            kept = []
+            for result in prediction.result or []:
+                if keep_types and result.get('type') not in keep_types:
+                    continue
+                labels = set(result.get('value', {}).get('rectanglelabels') or [])
+                if keep_labels and not (labels & keep_labels):
+                    continue
+                kept.append(result)
+            if len(samples) < 3:
+                samples.append((prediction.task_id, len(prediction.result or []), len(kept)))
+            if kept != (prediction.result or []):
+                prediction.result = kept
+                prediction.save(update_fields=['result', 'updated_at'])
+                updated += 1
+        print(f'Filtered {updated} predictions; samples (task, before -> after): {samples}')
     else:
         updated = queryset.update(result=[])
         print(f'Emptied result of {updated} predictions')

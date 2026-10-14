@@ -31,6 +31,10 @@ def parse_args():
     parser.add_argument('--keep-types', default='', help='With --mode filter: keep only these result types, e.g. rectanglelabels')
     parser.add_argument('--keep-labels', default='',
                         help='With --mode filter: keep only boxes carrying these labels (comma separated)')
+    parser.add_argument('--keep-fields', default='',
+                        help='With --mode filter: keep only results whose from_name is in this list')
+    parser.add_argument('--drop-fields', default='',
+                        help='With --mode filter: drop results whose from_name is in this list')
     parser.add_argument('--dry-run', action='store_true')
     parser.add_argument('--yes', action='store_true', help='Confirm the write')
     return parser.parse_args()
@@ -68,6 +72,8 @@ def main():
     with_result = queryset.exclude(result=[]).count()
     keep_types = {t.strip() for t in args.keep_types.split(',') if t.strip()}
     keep_labels = {l.strip() for l in args.keep_labels.split(',') if l.strip()}
+    keep_fields = {f.strip() for f in args.keep_fields.split(',') if f.strip()}
+    drop_fields = {f.strip() for f in args.drop_fields.split(',') if f.strip()}
     print(f'Project                 : {project.id} - {project.title}')
     print(f'Model version filter    : {"(all)" if args.all_versions else args.model_version}')
     print(f'Task filter             : {task_ids[:10]}{"..." if len(task_ids) > 10 else ""}' if task_ids else 'Task filter             : (all tasks)')
@@ -77,6 +83,8 @@ def main():
     if args.mode == 'filter':
         print(f'  keep types            : {sorted(keep_types) or "(any)"}')
         print(f'  keep labels           : {sorted(keep_labels) or "(any)"}')
+        print(f'  keep fields           : {sorted(keep_fields) or "(any)"}')
+        print(f'  drop fields           : {sorted(drop_fields) or "(none)"}')
 
     if args.dry_run:
         print('Dry run: nothing written')
@@ -96,6 +104,11 @@ def main():
         for prediction in queryset.iterator():
             kept = []
             for result in prediction.result or []:
+                from_name = result.get('from_name')
+                if keep_fields and from_name not in keep_fields:
+                    continue
+                if drop_fields and from_name in drop_fields:
+                    continue
                 if keep_types and result.get('type') not in keep_types:
                     continue
                 labels = set(result.get('value', {}).get('rectanglelabels') or [])

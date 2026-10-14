@@ -38,8 +38,13 @@ label-studio 1.23.0（官方 + 汉化 + text 分支功能迁移）。Windows，g
 手动分配模式与多 annotator 共享任务池不兼容：test_next_task 的 breadth_first_simple/breadth_first_overlap_3/fetch_final_taken_task/overlap_first 已加 skip 标记（原因注释）。
 
 ### 已知测试失败（预先存在，未修，2026-08-12 确认与改动无关）
-- `test_columns_api_returns_expected_ids`：迁移加了 DM `assignee` 列，官方测试期望列清单未同步（多一列）。修法：期望列表加 `assignee`。
 - `io_storages_presign_endpoints.tavern.yml` ×2：S3 兼容修复全局启用 `addressing_style: 'path'`（MinIO 需要），官方 presign 测试期望 virtual-host 格式。修法（两全）：endpoint 为官方 AWS 时用默认、自定义 endpoint 才 path。
+
+### 已修测试
+- `test_columns_api_returns_expected_ids`（2026-10-14，commit `59999dd`）：期望清单补上 fork 新增的 DM `assignee` 列，此前长期失败，现全绿。
+
+### 回归基线（2026-10-14，本地 SQLite）
+`pytest tests/test_annotations.py tests/test_annotations_result_count.py tests/test_api.py tests/test_task_assignment.py tests/test_task_assignment_standalone.py tests/test_next_task.py tests/test_project.py tests/test_predictions.py tests/test_export.py tests/data_manager/test_columns_api.py tests/data_manager/test_api_tasks.py tests/tasks/test_functions.py` → **115 passed, 67 skipped, 0 failed**。
 
 ### 数据库
 - 路径 `C:\Users\CYCLE\AppData\Local\label-studio\label-studio\label_studio.sqlite3`；备份 `.bak_funcmigrate`。

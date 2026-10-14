@@ -39,6 +39,18 @@ def parse_args():
         default='',
         help='Alternative to --stride: plain task-id range like 1-140 (uses the DM “ID” column)',
     )
+    parser.add_argument(
+        '--single-mode',
+        choices=['round_robin', 'chunks'],
+        default='round_robin',
+        help='How the remaining tasks are split: round_robin (default) or whole chunks',
+    )
+    parser.add_argument('--chunks', type=int, default=7, help='With --single-mode chunks: how many chunks to cut')
+    parser.add_argument(
+        '--chunk-ratio',
+        default='',
+        help='With --single-mode chunks: how many chunks each single user takes, e.g. 3,2,2',
+    )
     parser.add_argument('--dry-run', action='store_true', help='Print the plan only')
     return parser.parse_args()
 
@@ -90,9 +102,43 @@ def main():
     print(f'Project        : {project.id} - {project.title}')
     print(f'Tasks          : {len(tasks)}')
     print(f'Cross set      : {len(cross_ids)} tasks -> users {cross_users}')
-    print(f'Rest           : {len(rest)} tasks -> users {single_users} (round-robin)')
+    print(
+        f'Rest           : {len(rest)} tasks -> users {single_users} '
+        f'({"chunks %s ratio %s" % (args.chunks, args.chunk_ratio) if args.single_mode == "chunks" else "round-robin"})'
+    )
     if cross_ids:
         print(f'Cross task ids : {cross_ids[:10]}{"..." if len(cross_ids) > 10 else ""}')
+
+    buckets = {uid: [] for uid in single_users}
+    if single_users and rest:
+        if args.single_mode == 'chunks':
+            ratio = parse_ids(args.chunk_ratio)
+            if not ratio or sum(ratio) != args.chunks or len(ratio) != len(single_users):
+                print(f'--chunk-ratio must cover {args.chunks} chunks over {len(single_users)} users, e.g. 3,2,2')
+                return 1
+            # cut rest into `chunks` consecutive slices (bigger slices first), then hand
+            # each user `ratio[i]` slices in order
+            total = len(rest)
+            base, extra = divmod(total, args.chunks)
+            slices, cursor = [], 0
+            for i in range(args.chunks):
+                size = base + (1 if i < extra else 0)
+                slices.append(rest[cursor : cursor + size])
+                cursor += size
+            pointer = 0
+            for uid, take in zip(single_users, ratio):
+                owned = slices[pointer : pointer + take]
+                pointer += take
+                buckets[uid] = [t.id for chunk in owned for t in chunk]
+                print(f'User {uid}: chunks {take} -> {len(buckets[uid])} tasks')
+        else:
+            for index, task in enumerate(rest):
+                buckets[single_users[index % len(single_users)]].append(task.id)
+
+    print('Plan: ' + ' | '.join(f'user {uid}: cross-{len(cross_ids)} + single-{len(buckets[uid])}' for uid in single_users))
+    for uid in single_users:
+        cross_extra = len(cross_ids) if uid in cross_users else 0
+        print(f'  user {uid} total tasks to label: {len(buckets[uid]) + cross_extra}')
 
     if args.dry_run:
         print('Dry run: nothing written')
@@ -101,16 +147,11 @@ def main():
     stats = apply_task_assignments(project, cross_ids, cross_users, project.created_by)
     print(f'Cross assigned : {stats}')
 
-    if single_users and rest:
-        buckets = {uid: [] for uid in single_users}
-        for index, task in enumerate(rest):
-            buckets[single_users[index % len(single_users)]].append(task.id)
-
-        for uid, task_ids in buckets.items():
-            if not task_ids:
-                continue
-            part = apply_task_assignments(project, task_ids, [uid], project.created_by)
-            print(f'User {uid}: {len(task_ids)} tasks -> {part}')
+    for uid, task_ids in buckets.items():
+        if not task_ids:
+            continue
+        part = apply_task_assignments(project, task_ids, [uid], project.created_by)
+        print(f'User {uid}: {len(task_ids)} tasks -> {part}')
 
     return 0
 

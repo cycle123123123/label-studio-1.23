@@ -990,15 +990,23 @@ class ProjectAnnotatorsAPI(ProjectOrganizationScopedMixin, generics.RetrieveAPIV
     decorator=extend_schema(
         tags=['Projects'],
         summary='Assign tasks to annotators',
-        description='Batch assign or unassign tasks to an annotator (project owner only).',
+        description=(
+            'Batch assign or unassign tasks to one or more annotators (project owner only). '
+            'A task can hold several assignments at once (cross-validation labeling); '
+            'users assigned but missing from assignees are unassigned.'
+        ),
         request={
             'application/json': {
                 'type': 'object',
                 'properties': {
-                    'assignee': {'type': 'integer', 'description': 'User ID or 0 to unassign'},
+                    'assignees': {
+                        'type': 'array',
+                        'items': {'type': 'integer'},
+                        'description': 'User IDs to assign; empty list to unassign all',
+                    },
                     'task_ids': {'type': 'array', 'items': {'type': 'integer'}},
                 },
-                'required': ['assignee', 'task_ids'],
+                'required': ['assignees', 'task_ids'],
             }
         },
         responses={
@@ -1098,13 +1106,26 @@ class ProjectAssignmentsAPI(ProjectOrganizationScopedMixin, generics.RetrieveAPI
         if not can_manage_assignments(project, request.user):
             raise PermissionDenied('Only project owner can manage task assignment')
 
-        raw_assignee = request.data.get('assignee')
-        if raw_assignee in (None, ''):
-            raise RestValidationError({'assignee': 'Assignee is required'})
-        try:
-            assignee_id = int(raw_assignee)
-        except (TypeError, ValueError) as exc:
-            raise RestValidationError({'assignee': 'Invalid assignee value'}) from exc
+        raw_assignees = request.data.get('assignees')
+        if raw_assignees is None:
+            # Backward compatibility: single-assignee payload from older clients.
+            legacy = request.data.get('assignee')
+            if legacy in (None, ''):
+                raise RestValidationError({'assignees': 'Assignees are required'})
+            raw_assignees = [legacy]
+        if not isinstance(raw_assignees, list):
+            raise RestValidationError({'assignees': 'assignees must be a list of user IDs'})
+
+        assignee_ids = []
+        for raw in raw_assignees:
+            if raw in (None, ''):
+                continue
+            try:
+                uid = int(raw)
+            except (TypeError, ValueError) as exc:
+                raise RestValidationError({'assignees': 'Invalid assignee value'}) from exc
+            if uid != 0 and uid not in assignee_ids:
+                assignee_ids.append(uid)
 
         task_ids = request.data.get('task_ids') or []
         if not isinstance(task_ids, list):
@@ -1120,15 +1141,18 @@ class ProjectAssignmentsAPI(ProjectOrganizationScopedMixin, generics.RetrieveAPI
         if not parsed_task_ids:
             return Response({'processed_items': 0, 'detail': 'No tasks selected'})
 
-        if assignee_id != 0 and not get_assignable_users(project).filter(id=assignee_id).exists():
-            raise RestValidationError({'assignee': 'Selected user is not in this organization'})
+        if assignee_ids:
+            valid_ids = set(get_assignable_users(project).values_list('id', flat=True))
+            invalid = [uid for uid in assignee_ids if uid not in valid_ids]
+            if invalid:
+                raise RestValidationError({'assignees': 'Selected user is not in this organization'})
 
-        stats = apply_task_assignments(project, parsed_task_ids, assignee_id, request.user)
+        stats = apply_task_assignments(project, parsed_task_ids, assignee_ids, request.user)
 
-        if assignee_id == 0:
-            detail = f'Unassigned {stats["unassigned"]} tasks'
+        if not assignee_ids:
+            detail = f'Unassigned {stats["removed"]} tasks'
         else:
-            detail = f'Assigned {stats["assigned"] + stats["reassigned"]} tasks'
+            detail = f'Assigned {stats["assigned"]} task assignments'
 
         return Response({'processed_items': stats['changed'], 'detail': detail})
 
@@ -1418,7 +1442,10 @@ class ProjectStatisticsAPI(ProjectOrganizationScopedMixin, generics.RetrieveAPIV
         completed_tasks = tasks_qs.filter(is_labeled=True).count()
         pending_tasks = max(total_tasks - completed_tasks, 0)
 
-        assigned_tasks = TaskAssignment.objects.filter(task__project=project).count()
+        # A task can hold several assignments (cross-validation); count tasks, not assignment rows.
+        assigned_tasks = (
+            TaskAssignment.objects.filter(task__project=project).values('task_id').distinct().count()
+        )
         unassigned_tasks = max(total_tasks - assigned_tasks, 0)
         assignment_coverage = self._safe_rate(assigned_tasks, total_tasks)
 

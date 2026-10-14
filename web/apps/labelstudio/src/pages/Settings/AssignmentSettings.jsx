@@ -15,7 +15,7 @@ export const AssignmentSettings = () => {
   const { project } = useProject();
   const [members, setMembers] = useState([]);
   const [canManage, setCanManage] = useState(false);
-  const [assignee, setAssignee] = useState("0");
+  const [assignees, setAssignees] = useState([]);
   const [taskIdsInput, setTaskIdsInput] = useState("");
   const [assignments, setAssignments] = useState([]);
   const [assignmentCount, setAssignmentCount] = useState(0);
@@ -102,7 +102,7 @@ export const AssignmentSettings = () => {
       const response = await api.callApi("updateProjectAssignments", {
         params: { pk: project.id },
         body: {
-          assignee: Number(assignee),
+          assignees,
           task_ids: normalizedTaskIds,
         },
       });
@@ -128,16 +128,21 @@ export const AssignmentSettings = () => {
           <p className="settings-description">
             {t(
               "assignment_settings.bulk_desc",
-              "Input task IDs separated by comma or spaces, then select one assignee.",
+              "Input task IDs separated by comma or spaces, then select one or more assignees. An empty selection unassigns the tasks.",
             )}
           </p>
           <div className={cn("assignment-settings").elem("controls").toClassName()}>
             <select
-              value={assignee}
-              onChange={(event) => setAssignee(event.target.value)}
+              multiple
+              value={assignees.map(String)}
+              onChange={(event) => {
+                const selected = Array.from(event.target.selectedOptions, (option) => Number(option.value));
+                setAssignees(selected);
+              }}
               disabled={!canManage || loading}
+              aria-label={t("assignment_settings.assignee_select_aria", "Assignees")}
+              size={Math.min(Math.max(members.length + 1, 3), 8)}
             >
-              <option value="0">{t("assignment_settings.unassigned", "Unassigned")}</option>
               {members.map((member) => (
                 <option key={member.id} value={String(member.id)}>
                   {member.display_name}
@@ -182,7 +187,7 @@ export const AssignmentSettings = () => {
             </thead>
             <tbody>
               {assignments.map((item) => (
-                <tr key={`${item.task_id}-${item.assigned_at}`}>
+                <tr key={`${item.task_id}-${item?.assignee?.id ?? "none"}`}>
                   <td>#{item.task_id}</td>
                   <td>{item?.assignee?.display_name ?? "-"}</td>
                   <td>{item?.assigned_by?.display_name ?? "-"}</td>

@@ -51,7 +51,7 @@ def test_concurrent_first_assignment_is_serialized(
         close_old_connections()
         try:
             start.wait(timeout=5)
-            return apply_task_assignments(project, [task.id], assignee_id, business_client.user)
+            return apply_task_assignments(project, [task.id], [assignee_id], business_client.user)
         finally:
             close_old_connections()
 
@@ -60,43 +60,62 @@ def test_concurrent_first_assignment_is_serialized(
         second = executor.submit(assign, annotator2_client.user.id)
         results = [first.result(timeout=10), second.result(timeout=10)]
 
+    # Multi-assignee mode: concurrent assignments for different users coexist.
     assert sorted(result['changed'] for result in results) == [1, 1]
-    assignment = TaskAssignment.objects.get(task=task)
+    assert TaskAssignment.objects.filter(task=task).count() == 2
+    assert set(
+        TaskAssignment.objects.filter(task=task).values_list('user_id', flat=True)
+    ) == {annotator_client.user.id, annotator2_client.user.id}
     logs = list(TaskAssignmentAuditLog.objects.filter(task=task).order_by('id'))
     assert [log.action for log in logs] == [
         TaskAssignmentAuditLog.ACTION_ASSIGNED,
-        TaskAssignmentAuditLog.ACTION_REASSIGNED,
+        TaskAssignmentAuditLog.ACTION_ASSIGNED,
     ]
-    assert logs[1].previous_assignee_id == logs[0].assignee_id
-    assert assignment.user_id == logs[1].assignee_id
 
 
 @pytest.mark.django_db
-def test_reassign_preserves_created_at_first_assign_time(business_client, annotator_client, annotator2_client):
+def test_multiple_assignees_coexist_and_replacement_removes_others(business_client, annotator_client, annotator2_client):
     _join_org(business_client.organization, annotator_client.user)
     _join_org(business_client.organization, annotator2_client.user)
     project = make_project(_project_config(), business_client.user, use_ml_backend=False)
-    task = make_task({'data': {'text': 'reassign preserves first assignment time'}}, project)
+    task = make_task({'data': {'text': 'multi assignee coexist'}}, project)
 
-    assign_result = apply_task_assignments(project, [task.id], annotator_client.user.id, business_client.user)
+    # Assign first annotator; created_at is stamped via auto_now_add + bulk_create.
+    assign_result = apply_task_assignments(project, [task.id], [annotator_client.user.id], business_client.user)
     assert assign_result['assigned'] == 1
-    assignment = TaskAssignment.objects.get(task_id=task.id)
-    first_id = assignment.id
-    first_created_at = assignment.created_at
-    assert assignment.user_id == annotator_client.user.id
-    # Create path still stamps created_at: model auto_now_add + bulk_create honors pre_save().
-    assert first_created_at is not None
+    first_assignment = TaskAssignment.objects.get(task_id=task.id, user_id=annotator_client.user.id)
+    assert first_assignment.created_at is not None
 
-    reassign_result = apply_task_assignments(
-        project, [task.id], annotator2_client.user.id, business_client.user
+    # Add a second annotator for cross-validation: first one must stay intact.
+    add_result = apply_task_assignments(project, [task.id], [annotator_client.user.id, annotator2_client.user.id], business_client.user)
+    assert add_result['assigned'] == 1
+    assert TaskAssignment.objects.filter(task_id=task.id).count() == 2
+
+    first_assignment.refresh_from_db()
+    assert first_assignment.created_at is not None
+    assert TaskAssignment.objects.filter(
+        task_id=task.id, user_id=annotator_client.user.id
+    ).exists()
+    assert TaskAssignment.objects.filter(
+        task_id=task.id, user_id=annotator2_client.user.id
+    ).exists()
+
+    # Re-assign to only annotator2: annotator1 row is removed and audited.
+    replace_result = apply_task_assignments(project, [task.id], [annotator2_client.user.id], business_client.user)
+    assert replace_result['removed'] == 1
+    assert replace_result['assigned'] == 0
+    assert not TaskAssignment.objects.filter(task_id=task.id, user_id=annotator_client.user.id).exists()
+    assert TaskAssignment.objects.filter(task_id=task.id, user_id=annotator2_client.user.id).exists()
+    unassign_logs = TaskAssignmentAuditLog.objects.filter(
+        task=task, action=TaskAssignmentAuditLog.ACTION_UNASSIGNED
     )
-    assert reassign_result['reassigned'] == 1
+    assert unassign_logs.count() == 1
+    assert unassign_logs.first().previous_assignee_id == annotator_client.user.id
 
-    assignment.refresh_from_db()
-    assert assignment.id == first_id
-    assert assignment.user_id == annotator2_client.user.id
-    assert assignment.assigned_by_id == business_client.user.id
-    assert assignment.created_at == first_created_at
+    # Empty list unassigns everything.
+    clear_result = apply_task_assignments(project, [task.id], [], business_client.user)
+    assert clear_result['removed'] == 1
+    assert TaskAssignment.objects.filter(task_id=task.id).count() == 0
 
 
 @pytest.mark.django_db
@@ -733,3 +752,94 @@ def test_next_task_returns_existing_lock_id(business_client, annotator_client):
     assert response.status_code == 200
     assert response.json()['id'] == task.id
     assert response.json()['unique_lock_id'] == expected_lock_id
+
+
+@pytest.mark.django_db
+def test_multi_assignee_annotation_isolation_and_author_check(
+    business_client, annotator_client, annotator2_client
+):
+    """Cross-validation scenario: two assignees annotate the same task,
+    each keeping their own annotation; neither can overwrite the other's."""
+    _join_org(business_client.organization, annotator_client.user)
+    _join_org(business_client.organization, annotator2_client.user)
+    project = make_project(_project_config(), business_client.user, use_ml_backend=False)
+    task = make_task({'data': {'text': 'cross validation'}}, project)
+
+    assign_response = business_client.post(
+        f'/api/projects/{project.id}/assignments/',
+        data=json.dumps(
+            {'assignees': [annotator_client.user.id, annotator2_client.user.id], 'task_ids': [task.id]}
+        ),
+        content_type='application/json',
+    )
+    assert assign_response.status_code == 200
+    assert TaskAssignment.objects.filter(task=task).count() == 2
+
+    def _payload(choice):
+        return {
+            'result': [
+                {
+                    'id': 'r1',
+                    'from_name': 'sentiment',
+                    'to_name': 'text',
+                    'type': 'choices',
+                    'value': {'choices': [choice]},
+                }
+            ]
+        }
+
+    first_response = annotator_client.post(
+        f'/api/tasks/{task.id}/annotations/', data=json.dumps(_payload('positive')), content_type='application/json'
+    )
+    assert first_response.status_code == 201
+    second_response = annotator2_client.post(
+        f'/api/tasks/{task.id}/annotations/', data=json.dumps(_payload('negative')), content_type='application/json'
+    )
+    assert second_response.status_code == 201
+
+    # Two independent annotations on the same task, one per annotator.
+    annotations = Annotation.objects.filter(task=task, was_cancelled=False)
+    assert annotations.count() == 2
+    assert set(annotations.values_list('completed_by_id', flat=True)) == {
+        annotator_client.user.id,
+        annotator2_client.user.id,
+    }
+
+    first_id = first_response.json()['id']
+    second_id = second_response.json()['id']
+
+    # A fellow assignee cannot overwrite someone else's annotation.
+    forbidden = annotator_client.patch(
+        f'/api/annotations/{second_id}/',
+        data=json.dumps(_payload('positive')),
+        content_type='application/json',
+    )
+    assert forbidden.status_code == 403
+
+    # Editing your own annotation is fine.
+    own = annotator_client.patch(
+        f'/api/annotations/{first_id}/',
+        data=json.dumps(_payload('negative')),
+        content_type='application/json',
+    )
+    assert own.status_code == 200
+
+    # The project owner keeps full edit rights.
+    owner_edit = business_client.patch(
+        f'/api/annotations/{second_id}/',
+        data=json.dumps(_payload('positive')),
+        content_type='application/json',
+    )
+    assert owner_edit.status_code == 200
+
+    # An imported annotation (completed_by is not an assignee) stays editable
+    # by anyone with task access - the import/continue-labeling workflow.
+    imported = Annotation.objects.create(
+        task=task, project=project, completed_by=business_client.user, result=[]
+    )
+    imported_edit = annotator_client.patch(
+        f'/api/annotations/{imported.id}/',
+        data=json.dumps({'result': [], 'lead_time': 10.0}),
+        content_type='application/json',
+    )
+    assert imported_edit.status_code == 200

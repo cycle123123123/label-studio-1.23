@@ -683,6 +683,32 @@ class AnnotationAPI(AssignmentScopedTaskObjectMixin, generics.RetrieveUpdateDest
     def perform_destroy(self, annotation):
         annotation.delete()
 
+    def _check_annotation_author(self, annotation, user):
+        """Prevent fellow assignees from overwriting each other's annotations.
+
+        With multi-assignee tasks (cross-validation) several annotators share
+        one task; each must only update their own annotation. Imported or
+        historical annotations whose completed_by is not an assignee of the
+        task (e.g. the importer) stay editable by anyone with task access, so
+        the import/continue-labeling workflow keeps working. Owners, staff
+        and superusers keep full edit rights.
+        """
+        if annotation.completed_by_id == user.id:
+            return
+        project = annotation.task.project if annotation.task_id else annotation.project
+        if project is not None and project.created_by_id == user.id:
+            return
+        if user.is_staff or user.is_superuser:
+            return
+
+        from tasks.models import TaskAssignment
+
+        author_is_fellow_assignee = TaskAssignment.objects.filter(
+            task_id=annotation.task_id, user_id=annotation.completed_by_id
+        ).exists()
+        if author_is_fellow_assignee:
+            raise PermissionDenied('You can only edit your own annotations')
+
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
 
@@ -691,6 +717,7 @@ class AnnotationAPI(AssignmentScopedTaskObjectMixin, generics.RetrieveUpdateDest
             task = annotation.task
             if not can_user_access_task(task, request.user):
                 raise PermissionDenied('You have no access to this task')
+            self._check_annotation_author(annotation, request.user)
 
             previous_workflow_action = get_workflow_audit_action(annotation)
             serializer = self.get_serializer(annotation, data=request.data, partial=partial)

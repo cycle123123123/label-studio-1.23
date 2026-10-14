@@ -664,8 +664,23 @@ def annotate_annotators(queryset):
 
 
 def annotate_assignee(queryset):
+    # TaskAssignment is one-to-many (a task can be assigned to several users for
+    # cross-validation), so a plain join would duplicate task rows in the DM.
+    # Use a Subquery limited to one row: first assignee's email/username.
+    from tasks.models import TaskAssignment
+
+    first_assignment = (
+        TaskAssignment.objects.filter(task_id=OuterRef('pk'))
+        .select_related('user')
+        .order_by('id')
+    )
     return queryset.annotate(
-        assignee=Coalesce('assignment__user__email', 'assignment__user__username', Value(''), output_field=TextField())
+        assignee=Coalesce(
+            Subquery(first_assignment.values('user__email')[:1]),
+            Subquery(first_assignment.values('user__username')[:1]),
+            Value(''),
+            output_field=TextField(),
+        )
     )
 
 

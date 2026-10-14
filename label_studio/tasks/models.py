@@ -573,13 +573,14 @@ post_bulk_create = Signal()   # providing args 'objs' and 'batch_size'
 class TaskAssignment(models.Model):
     """
     Manual task assignment in OSS:
-    one task can be assigned to one user.
+    one task can be assigned to multiple users
+    (e.g. cross-validation where several annotators label the same task).
     """
 
-    task = models.OneToOneField(
+    task = models.ForeignKey(
         'tasks.Task',
         on_delete=models.CASCADE,
-        related_name='assignment',
+        related_name='assignments',
         help_text='Assigned task',
     )
     user = models.ForeignKey(
@@ -600,6 +601,9 @@ class TaskAssignment(models.Model):
 
     class Meta:
         db_table = 'task_assignment'
+        constraints = [
+            models.UniqueConstraint(fields=['task', 'user'], name='unique_task_user_assignment'),
+        ]
         indexes = [
             models.Index(fields=['user', 'task']),
             models.Index(fields=['task', 'user']),

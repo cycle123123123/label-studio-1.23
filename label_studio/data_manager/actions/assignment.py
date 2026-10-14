@@ -1,6 +1,5 @@
 """Manual task assignment actions for Data Manager."""
 
-from django.db import transaction
 from django.utils.translation import gettext_lazy as _
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
@@ -30,17 +29,20 @@ def assign_tasks(project, queryset, **kwargs):
     if not task_ids:
         return {'processed_items': 0, 'detail': _('No tasks selected')}
 
-    with transaction.atomic():
-        if assignee_id != 0:
-            users = get_assignable_users(project).filter(id=assignee_id)
-            if not users.exists():
-                raise ValidationError({'assignee': _('Selected user is not in this organization')})
-        stats = apply_task_assignments(project, task_ids, assignee_id, request.user)
+    if assignee_id != 0:
+        users = get_assignable_users(project).filter(id=assignee_id)
+        if not users.exists():
+            raise ValidationError({'assignee': _('Selected user is not in this organization')})
+
+    # The DM action keeps a single-select form: assigning one user replaces all
+    # previous assignees on the selected tasks (use the project settings page
+    # for multi-assignee cross-validation assignments).
+    stats = apply_task_assignments(project, task_ids, [assignee_id] if assignee_id != 0 else [], request.user)
 
     if assignee_id == 0:
-        detail = _('Unassigned {count} tasks').format(count=stats['unassigned'])
+        detail = _('Unassigned {count} tasks').format(count=stats['removed'])
     else:
-        detail = _('Assigned {count} tasks').format(count=stats['assigned'] + stats['reassigned'])
+        detail = _('Assigned {count} tasks').format(count=stats['assigned'])
 
     return {'processed_items': stats['changed'], 'detail': detail}
 

@@ -947,12 +947,7 @@ class NextTaskSerializer(TaskWithAnnotationsAndPredictionsAndDraftsSerializer):
         if not user or not user.is_authenticated:
             return False
 
-        if hasattr(task, 'assignment'):
-            return task.assignment.user_id == user.id
-
-        from tasks.models import TaskAssignment
-
-        return TaskAssignment.objects.filter(task=task, user=user).exists()
+        return task.assignments.filter(user_id=user.id).exists()
 
     def get_predictions(self, task):
         predictions = task.get_predictions_for_prelabeling()

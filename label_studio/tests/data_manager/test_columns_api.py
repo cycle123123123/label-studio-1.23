@@ -32,6 +32,8 @@ def test_columns_api_returns_expected_ids(business_client):
         'cancelled_annotations',
         'total_predictions',
         'annotators',
+        # fork addition: manual assignment column (see TASK_ASSIGNMENT)
+        'assignee',
         'annotations_results',
         'annotations_ids',
         'predictions_score',

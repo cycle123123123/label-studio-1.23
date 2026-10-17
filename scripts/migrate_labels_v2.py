@@ -128,7 +128,7 @@ def main():
                 continue
             if changed:
                 touched[kind] += 1
-                planned.append((row, new_result))
+                planned.append((kind, queryset.model, row.pk, new_result))
 
     print('Mapping statistics (label occurrences):')
     for (old, new_from, new_label), count in sorted(stats.items(), key=lambda x: -x[1]):
@@ -146,15 +146,26 @@ def main():
         return 1
 
     with transaction.atomic():
-        for row, new_result in planned:
-            row.result = new_result
-            row.save(update_fields=['result'])
+        # Use QuerySet.update() on purpose: it bypasses Model.save(), which for drafts
+        # happens to lock the project summary and for predictions/annotations runs the
+        # FSM hooks. Replacing `result` changes neither counters nor state, so a plain
+        # SQL UPDATE is both safe and immune to "update_fields did not affect any rows"
+        # (a row can disappear while we migrate, e.g. a draft removed on submit).
+        updated = 0
+        vanished = 0
+        for kind, model, pk, new_result in planned:
+            affected = model.objects.filter(pk=pk).update(result=new_result)
+            if affected:
+                updated += 1
+            else:
+                vanished += 1
+                print(f'  ! {kind} id={pk} vanished during migration, skipped')
 
     # label counters in the project summary are now stale
     if hasattr(project, 'summary'):
         project.summary.reset(tasks_data_based=False)
 
-    print(f'Done: updated {len(planned)} rows')
+    print(f'Done: updated {updated} rows' + (f' | vanished {vanished}' if vanished else ''))
     return 0
 
 

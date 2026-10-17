@@ -38,6 +38,8 @@ def parse_args():
     parser.add_argument('--user-ids', default='', help='Only these annotator user ids (default: any)')
     parser.add_argument('--note-keywords', default=DEFAULT_KEYWORDS,
                         help='Notes containing any of these mark the box as "no pattern"')
+    parser.add_argument('--convert-all', action='store_true',
+                        help='Convert every pattern_box box regardless of its pattern value')
     parser.add_argument('--dry-run', action='store_true')
     parser.add_argument('--yes', action='store_true')
     return parser.parse_args()
@@ -64,7 +66,7 @@ def flatten(value, field):
     return out
 
 
-def plan_annotation(result, keywords):
+def plan_annotation(result, keywords, convert_all=False):
     """Return (new_result, converted_boxes, kept_boxes, details)."""
     pattern_values = {}
     pattern_notes = {}
@@ -93,7 +95,9 @@ def plan_annotation(result, keywords):
         labels = pattern_values.get(key)
         note = pattern_notes.get(key, '')
 
-        if not labels:
+        if convert_all:
+            reason = f'forced ({labels or "no value"}{" " + note if note else ""})'.strip()
+        elif not labels:
             reason = 'no pattern value'
         elif labels == ['其他'] and any(kw in note for kw in keywords):
             reason = f'其他 + note "{note}"'
@@ -143,7 +147,7 @@ def main():
         if user_ids:
             qs = qs.filter(completed_by_id__in=user_ids)
         for ann in qs:
-            new_result, converted, kept, details = plan_annotation(ann.result or [], keywords)
+            new_result, converted, kept, details = plan_annotation(ann.result or [], keywords, args.convert_all)
             if converted:
                 planned.append((ann, new_result))
             total_converted += converted

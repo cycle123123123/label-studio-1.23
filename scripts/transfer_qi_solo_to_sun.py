@@ -13,7 +13,7 @@
 所以一次调用即完成 移除齐 / 加入孙，中间不留无人可标的状态。
 """
 
-import csv  # noqa: F401  (保留，便于临时改为从文件读)
+import os
 
 from django.contrib.auth import get_user_model
 
@@ -26,8 +26,8 @@ PROJECT_ID = 1
 QI = '1@163.com'        # 齐添乐 user id 2
 SUN = '3@163.com'       # 孙无双 user id 4
 ACTOR = '13243186667'   # 执行人（管理员）
-MODE = 'transfer'       # transfer | rollback
-APPLY = False
+MODE = os.environ.get('MODE', 'transfer')   # transfer | rollback
+APPLY = os.environ.get('APPLY', '0') in ('1', 'true', 'yes', 'y')
 
 TASK_IDS = [
     5048, 5054, 5056, 5057, 5102, 5103, 5109, 5117, 5118, 5119, 5121, 5122,

@@ -50,9 +50,18 @@ TASK_IDS = [
 
 User = get_user_model()
 project = Project.objects.get(pk=PROJECT_ID)
-qi = User.objects.get(email=QI)
-sun = User.objects.get(email=SUN)
-actor = User.objects.get(email=ACTOR)
+qi = User.objects.filter(email=QI).first() or User.objects.filter(username=QI).first()
+sun = User.objects.filter(email=SUN).first() or User.objects.filter(username=SUN).first()
+# 执行人优先按用户名找（管理员账号没有 email），兜底项目创建者
+actor = (
+    User.objects.filter(username=ACTOR).first()
+    or User.objects.filter(email=ACTOR).first()
+    or project.created_by
+)
+if qi is None or sun is None:
+    raise SystemExit('找不到标注员：qi=%r sun=%r' % (qi, sun))
+print('人：qi=%s(%s)  sun=%s(%s)  actor=%s(%s)'
+      % (qi.email, qi.id, sun.email, sun.id, getattr(actor, 'username', '?'), getattr(actor, 'id', '?')))
 
 owners = {}
 for row in TaskAssignment.objects.filter(task_id__in=TASK_IDS).values('task_id', 'user__email'):

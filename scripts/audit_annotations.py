@@ -65,6 +65,8 @@ def audit_row(row):
     issues = []
 
     # 只对"服饰"框做完整性检查：每个服饰框都应有款式和颜色
+    if costume_boxes == 0 and (styles or colors):
+        issues.append('无服饰框（款式/颜色挂在纹样框上）')
     if costume_boxes and styles < costume_boxes:
         issues.append(f'{costume_boxes - styles}个服饰框未填款式')
     if costume_boxes and colors < costume_boxes:

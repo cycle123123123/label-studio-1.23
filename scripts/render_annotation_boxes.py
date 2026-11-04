@@ -43,6 +43,18 @@ def main(export_path, image_root, outdir, max_boxes=1):
             c = COLORS.get(lab, (120, 120, 120))
             d.rectangle([x, y, x + w, y + h], outline=c, width=6)
             d.text((x + 8, max(y + 4, 2)), lab, fill=c, font=font)
+        # 纹样框（独立 pattern_box 字段，蓝色 + taxonomy 叶子标签）
+        for b in (r.get('pattern_box') or []):
+            x, y = b['x'] / 100 * W, b['y'] / 100 * H
+            w, h = b['width'] / 100 * W, b['height'] / 100 * H
+            c = COLORS['纹样']
+            # 取最深一层叶子字符串（taxonomy 可能深层嵌套或为 None）
+            node = b.get('taxonomy')
+            while isinstance(node, list) and node:
+                node = node[-1]
+            leaf = node if isinstance(node, str) and node else ''
+            d.rectangle([x, y, x + w, y + h], outline=c, width=5)
+            d.text((x + 8, max(y + 4, 2)), f'纹样:{leaf}' if leaf else '纹样', fill=c, font=font)
         im.save(os.path.join(outdir, f"{r['id']}_cb{len(costume)}.jpg"), quality=82)
         made += 1
     print(f'rendered {made} images -> {outdir}')

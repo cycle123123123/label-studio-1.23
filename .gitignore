@@ -96,3 +96,9 @@ web/dist/
 # local data / logs
 .lsdata/
 logs/
+
+# local agent memory
+.workbuddy/
+
+# generated cross-validation copies / project backup
+label_studio/cross_copies_out/

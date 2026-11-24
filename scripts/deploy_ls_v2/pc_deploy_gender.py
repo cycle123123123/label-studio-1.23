@@ -49,7 +49,9 @@ def main() -> None:
         print(f"[自举] 正在拉取修改版 Label Studio 仓库到 {deploy_dir} ...")
         subprocess.run([git_exe, "clone", repo_url, deploy_dir], check=True)
     else:
-        subprocess.run([git_exe, "-C", deploy_dir, "pull", "--ff-only"], check=True)
+        r_pull = subprocess.run([git_exe, "-C", deploy_dir, "pull", "--ff-only"])
+        if r_pull.returncode != 0:
+            print("[警告] git pull 失败（网络波动或离线），继续使用本地现有仓库。")
 
     target = os.path.join(deploy_dir, "scripts", "deploy_ls_v2", "_pc_deploy_common.py")
     cmd = [sys.executable, target, "--mode", "gender", "--dir", deploy_dir, "--port", str(DEFAULT_PORT), *sys.argv[1:]]

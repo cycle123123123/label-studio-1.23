@@ -202,7 +202,7 @@ INIT_OUT="$(docker compose -f docker-compose.deploy.yml -p "${COMPOSE_PROJECT}" 
 import os
 from django.contrib.auth import get_user_model
 from organizations.models import Organization
-from rest_framework.authtoken.models import Token
+from rest_framework_simplejwt.tokens import RefreshToken
 
 User = get_user_model()
 email = os.environ.get('ADMIN_EMAIL', 'admin@xiqu.local').strip()
@@ -213,22 +213,28 @@ if u is None:
     u = User.objects.filter(is_superuser=True).first() or User.objects.first()
 
 if u is None:
-    org = Organization.objects.first()
-    if org is None:
-        org = Organization.objects.create(title='戏曲服饰标注')
     u = User.objects.create_superuser(email=email, username=email.split('@')[0], password=password)
-    org.add_user(u)
-    u.active_organization = org
-    u.save(update_fields=['active_organization'])
-elif getattr(u, 'active_organization', None) is None:
-    org = Organization.objects.first() or Organization.objects.create(title='戏曲服饰标注')
-    org.add_user(u)
+
+org = getattr(u, 'active_organization', None) or Organization.objects.first()
+if org is None:
+    org = Organization.create_organization(created_by=u, title='戏曲服饰标注')
+else:
+    if org.created_by is None:
+        org.created_by = u
+        org.save(update_fields=['created_by'])
+    if not org.has_user(u):
+        org.add_user(u)
+
+if getattr(u, 'active_organization_id', None) != org.id:
     u.active_organization = org
     u.save(update_fields=['active_organization'])
 
-tok, _ = Token.objects.get_or_create(user=u)
+if hasattr(org, 'jwt'):
+    org.jwt.legacy_api_tokens_enabled = True
+    org.jwt.save()
+
 print(f'__LS_ADMIN__={u.email}')
-print(f'__LS_TOKEN__={tok.key}')
+print(f'__LS_TOKEN__={str(RefreshToken.for_user(u))}')
 PYEOF
 )"
 

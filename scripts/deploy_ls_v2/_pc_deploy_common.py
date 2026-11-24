@@ -110,7 +110,7 @@ def parse_args(
     ap.add_argument("--s3-sk", default="", help="S3 Secret Key")
     ap.add_argument("--admin-email", default=os.getenv("ADMIN_EMAIL", "admin@xiqu.local"), help="本地管理员登录邮箱")
     ap.add_argument("--admin-password", default=os.getenv("ADMIN_PASSWORD", ""), help="本地管理员密码（不填则首次自动生成）")
-    ap.add_argument("--pypi-mirror", default="https://mirrors.aliyun.com/pypi/simple/", help="PyPI 镜像源")
+    ap.add_argument("--pypi-mirror", default="https://pypi.tuna.tsinghua.edu.cn/simple", help="PyPI 镜像源")
     ap.add_argument("--npm-registry", default="https://registry.npmmirror.com", help="Yarn/NPM 镜像源")
     ap.add_argument("--skip-web-build", action="store_true", help="跳过前端编译（若已有 web/dist 或仅调试后端时使用）")
     ap.add_argument("--rebuild-web", action="store_true", help="强制重新编译前端")
@@ -225,7 +225,9 @@ def main(
         os.makedirs(os.path.dirname(deploy_dir), exist_ok=True)
         run_cmd([tools["git"], "clone", args.repo_url, deploy_dir])
     else:
-        run_cmd([tools["git"], "-C", deploy_dir, "pull", "--ff-only"])
+        r_pull = subprocess.run([tools["git"], "-C", deploy_dir, "pull", "--ff-only"])
+        if r_pull.returncode != 0:
+            print("  [警告] git pull 失败（网络波动或离线），继续使用本地现有代码。")
 
     # [3/7] 创建独立 .venv 并安装后端依赖
     print("[3/7] 准备 Python 独立虚拟环境与后端依赖...")
@@ -239,7 +241,7 @@ def main(
         need_py = chk.returncode != 0
     if need_py:
         run_cmd([vpy, "-m", "pip", "install", "-U", "pip", "wheel", "setuptools", "poetry-core>=2.0.0,<3.0.0", "-i", args.pypi_mirror])
-        run_cmd([vpy, "-m", "pip", "install", "--no-build-isolation", "-e", ".", "-i", args.pypi_mirror], cwd=deploy_dir)
+        run_cmd([vpy, "-m", "pip", "install", "--no-build-isolation", "-e", ".", "sentry-sdk==2.16.0", "-i", args.pypi_mirror], cwd=deploy_dir)
     else:
         print("  检测到 .venv 后端依赖已就绪，跳过安装（可用 --reinstall-py 强制重装）")
 
@@ -253,7 +255,29 @@ def main(
         yarn_exe = tools["yarn"]
         node_modules = os.path.join(web_dir, "node_modules")
         if args.rebuild_web or not os.path.exists(node_modules):
-            run_cmd([yarn_exe, "install", "--registry", args.npm_registry], cwd=web_dir)
+            run_cmd([yarn_exe, "install", "--frozen-lockfile", "--registry", args.npm_registry], cwd=web_dir)
+        # 防 Windows/Yarn 并发解压残包：检查是否存在缺少 package.json 的空壳包
+        if os.path.exists(node_modules):
+            broken_dirs = []
+            for entry in os.listdir(node_modules):
+                full = os.path.join(node_modules, entry)
+                if not os.path.isdir(full) or entry.startswith("."):
+                    continue
+                if entry.startswith("@"):
+                    for sub in os.listdir(full):
+                        sfull = os.path.join(full, sub)
+                        if os.path.isdir(sfull) and not os.path.exists(os.path.join(sfull, "package.json")):
+                            broken_dirs.append(sfull)
+                elif not os.path.exists(os.path.join(full, "package.json")):
+                    broken_dirs.append(full)
+            if broken_dirs:
+                print(f"  [修复] 检测到 {len(broken_dirs)} 个残缺前端包，清理后重装...")
+                for b in broken_dirs:
+                    shutil.rmtree(b, ignore_errors=True)
+                integrity = os.path.join(node_modules, ".yarn-integrity")
+                if os.path.exists(integrity):
+                    os.remove(integrity)
+                run_cmd([yarn_exe, "install", "--frozen-lockfile", "--registry", args.npm_registry], cwd=web_dir)
         build_env = {**os.environ, "NODE_ENV": "production"}
         run_cmd([yarn_exe, "ls:build"], cwd=web_dir, env=build_env)
     else:
@@ -280,25 +304,30 @@ def main(
         "import os\n"
         "from django.contrib.auth import get_user_model\n"
         "from organizations.models import Organization\n"
-        "from rest_framework.authtoken.models import Token\n"
+        "from rest_framework_simplejwt.tokens import RefreshToken\n"
         "User = get_user_model()\n"
         "email = os.environ['INIT_ADMIN_EMAIL']\n"
         "pw = os.environ['INIT_ADMIN_PASS']\n"
         "u = User.objects.filter(email=email).first() or User.objects.filter(is_superuser=True).first() or User.objects.first()\n"
         "if u is None:\n"
-        "    org = Organization.objects.first() or Organization.objects.create(title='戏曲服饰标注')\n"
         "    u = User.objects.create_superuser(email=email, username=email.split('@')[0], password=pw)\n"
-        "    org.add_user(u)\n"
+        "org = getattr(u, 'active_organization', None) or Organization.objects.first()\n"
+        "if org is None:\n"
+        "    org = Organization.create_organization(created_by=u, title='戏曲服饰标注')\n"
+        "else:\n"
+        "    if org.created_by is None:\n"
+        "        org.created_by = u\n"
+        "        org.save(update_fields=['created_by'])\n"
+        "    if not org.has_user(u):\n"
+        "        org.add_user(u)\n"
+        "if getattr(u, 'active_organization_id', None) != org.id:\n"
         "    u.active_organization = org\n"
         "    u.save(update_fields=['active_organization'])\n"
-        "elif getattr(u, 'active_organization', None) is None:\n"
-        "    org = Organization.objects.first() or Organization.objects.create(title='戏曲服饰标注')\n"
-        "    org.add_user(u)\n"
-        "    u.active_organization = org\n"
-        "    u.save(update_fields=['active_organization'])\n"
-        "tok, _ = Token.objects.get_or_create(user=u)\n"
+        "if hasattr(org, 'jwt'):\n"
+        "    org.jwt.legacy_api_tokens_enabled = True\n"
+        "    org.jwt.save()\n"
         "print('__LS_ADMIN__=' + u.email)\n"
-        "print('__LS_TOKEN__=' + tok.key)\n"
+        "print('__LS_TOKEN__=' + str(RefreshToken.for_user(u)))\n"
     )
     init_res = subprocess.run(
         [vpy, manage_py, "shell", "-c", init_code],

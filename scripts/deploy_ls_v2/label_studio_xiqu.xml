@@ -1,0 +1,601 @@
+<View style="display:flex; gap:24px; align-items:flex-start;">
+  <View style="width:36%; min-width:320px;">
+    <Collapse>
+      <Panel value="剧目与场景信息（点击展开/收起）">
+    <Header value="标题" size="6" />
+    <TextArea name="play_title" toName="img" rows="1" placeholder="完整的剧目标题" />
+    <Header value="别名" size="6" />
+    <TextArea name="play_alias" toName="img" rows="1" placeholder="该剧目的其它名称" />
+    <Header value="剧种" size="6" />
+    <Taxonomy name="opera_genre" toName="img" leafsOnly="true" placeholder="Search genre" minWidth="300px" maxWidth="560px">
+      <Choice value="京剧" />
+      <Choice value="豫剧" />
+      <Choice value="越剧" />
+      <Choice value="评剧" />
+      <Choice value="秦腔" />
+      <Choice value="黄梅戏" />
+      <Choice value="昆剧" />
+      <Choice value="曲剧" />
+      <Choice value="眉户（眉户戏）" />
+      <Choice value="河北梆子" />
+      <Choice value="川剧" />
+      <Choice value="坠子戏（坠剧）" />
+      <Choice value="四平调" />
+      <Choice value="柳琴戏" />
+      <Choice value="晋剧（山西梆子）" />
+      <Choice value="侗戏" />
+      <Choice value="大平调" />
+      <Choice value="二夹弦（两夹弦）" />
+      <Choice value="汉剧" />
+      <Choice value="滑稽戏" />
+      <Choice value="二人转" />
+      <Choice value="吕剧" />
+      <Choice value="蒲州郡子（蒲剧）" />
+      <Choice value="苗剧" />
+      <Choice value="诗赋弦" />
+      <Choice value="潮剧" />
+      <Choice value="粤剧" />
+      <Choice value="东路二人台" />
+      <Choice value="四股弦" />
+      <Choice value="大弦子戏（大弦戏）" />
+      <Choice value="嗨子戏" />
+      <Choice value="怀调" />
+      <Choice value="荆河戏" />
+      <Choice value="楚剧" />
+      <Choice value="祁剧" />
+      <Choice value="吉剧" />
+      <Choice value="泗州戏" />
+      <Choice value="扬剧" />
+      <Choice value="淮剧" />
+      <Choice value="赣戏" />
+      <Choice value="柳子戏" />
+      <Choice value="枣梆" />
+      <Choice value="朔县大秧歌" />
+      <Choice value="晋北道情" />
+      <Choice value="上党落子" />
+      <Choice value="耍孩儿" />
+      <Choice value="二人台" />
+      <Choice value="沪剧" />
+      <Choice value="新疆曲子剧" />
+      <Choice value="锡伯族汗都春" />
+      <Choice value="中卫道情" />
+      <Choice value="花儿剧" />
+      <Choice value="银川道情" />
+      <Choice value="盐池道情" />
+      <Choice value="青海平弦戏" />
+      <Choice value="黄南藏戏" />
+      <Choice value="果洛马背藏戏" />
+      <Choice value="玉树格萨尔藏戏" />
+      <Choice value="曲子戏" />
+      <Choice value="民勤曲子戏" />
+      <Choice value="高山戏" />
+      <Choice value="陇南影子腔" />
+      <Choice value="陇剧" />
+      <Choice value="南木特藏戏" />
+      <Choice value="玉垒花灯戏" />
+      <Choice value="灵台灯盏头剧" />
+      <Choice value="半台戏" />
+      <Choice value="汉调二黄" />
+      <Choice value="道情（拉波戏）" />
+      <Choice value="商洛花鼓" />
+      <Choice value="紫阳民歌剧" />
+      <Choice value="同州梆子" />
+      <Choice value="汉调桄桄" />
+      <Choice value="陕北道情" />
+      <Choice value="弦板腔" />
+      <Choice value="陕北秧歌" />
+      <Choice value="弦子戏" />
+      <Choice value="八岔" />
+      <Choice value="大筒子" />
+      <Choice value="陕西端公戏" />
+      <Choice value="线戏" />
+      <Choice value="碗碗腔" />
+      <Choice value="阿宫腔" />
+      <Choice value="跳戏" />
+      <Choice value="老腔" />
+      <Choice value="关中秧歌" />
+      <Choice value="蓝面具藏戏" />
+      <Choice value="门巴戏" />
+      <Choice value="昌都蔵戏" />
+      <Choice value="巴贡戏" />
+      <Choice value="夏尔巴玛尼戏" />
+      <Choice value="白面具藏戏" />
+      <Choice value="白剧" />
+      <Choice value="大词戏" />
+      <Choice value="傣剧" />
+      <Choice value="云南端公戏" />
+      <Choice value="关索戏" />
+      <Choice value="云南花灯" />
+      <Choice value="昆明曲剧" />
+      <Choice value="佤族清戏" />
+      <Choice value="云南壮剧" />
+      <Choice value="傣族章哈剧" />
+      <Choice value="杀戏" />
+      <Choice value="滇剧" />
+      <Choice value="香通戏" />
+      <Choice value="梓潼戏" />
+      <Choice value="彝剧" />
+      <Choice value="贵州花灯" />
+      <Choice value="布依戏" />
+      <Choice value="黔剧" />
+      <Choice value="贵州阳戏" />
+      <Choice value="地戏" />
+      <Choice value="贵州傩堂戏" />
+      <Choice value="德格藏戏" />
+      <Choice value="康巴藏戏" />
+      <Choice value="安多藏戏" />
+      <Choice value="嘉绒藏戏" />
+      <Choice value="四川灯戏" />
+      <Choice value="四川傩戏" />
+      <Choice value="四川曲剧" />
+      <Choice value="梁山灯戏" />
+      <Choice value="重庆花灯戏" />
+      <Choice value="儋州山歌剧" />
+      <Choice value="琼剧" />
+      <Choice value="临剧" />
+      <Choice value="仫佬剧" />
+      <Choice value="唱灯戏" />
+      <Choice value="客家戏" />
+      <Choice value="鹩戏" />
+      <Choice value="牛歌戏" />
+      <Choice value="壮剧" />
+      <Choice value="桂剧" />
+      <Choice value="啀戏" />
+      <Choice value="彩调剧" />
+      <Choice value="邕剧" />
+      <Choice value="师公戏" />
+      <Choice value="文场戏" />
+      <Choice value="壮师剧" />
+      <Choice value="桂南采茶戏" />
+      <Choice value="牛娘戏" />
+      <Choice value="鹿儿戏" />
+      <Choice value="丝弦戏（宾州戏）" />
+      <Choice value="毛南戏" />
+      <Choice value="花朝戏" />
+      <Choice value="正字戏" />
+      <Choice value="白字戏" />
+      <Choice value="西秦戏" />
+      <Choice value="乐昌花鼓戏" />
+      <Choice value="广东汉剧" />
+      <Choice value="梅县山歌剧" />
+      <Choice value="粤北采茶戏" />
+      <Choice value="雷剧" />
+      <Choice value="辰河戏" />
+      <Choice value="岳阳花鼓戏" />
+      <Choice value="邵阳花鼓戏" />
+      <Choice value="湖南花灯戏" />
+      <Choice value="衡阳湘剧" />
+      <Choice value="湖南傩堂戏" />
+      <Choice value="衡州花鼓戏" />
+      <Choice value="湖南阳戏" />
+      <Choice value="零陵花鼓戏" />
+      <Choice value="长沙花鼓戏" />
+      <Choice value="常德汉剧" />
+      <Choice value="巴陵戏" />
+      <Choice value="常德花鼓戏" />
+      <Choice value="湘剧" />
+      <Choice value="南剧" />
+      <Choice value="山二黄" />
+      <Choice value="湖北越调" />
+      <Choice value="荆州花鼓戏" />
+      <Choice value="东路花鼓戏" />
+      <Choice value="阳新采茶戏" />
+      <Choice value="襄阳花鼓戏" />
+      <Choice value="远安花鼓戏" />
+      <Choice value="随州花鼓戏" />
+      <Choice value="郧阳花鼓戏" />
+      <Choice value="文曲戏" />
+      <Choice value="钟祥梁山调" />
+      <Choice value="提琴戏" />
+      <Choice value="湖北柳子戏" />
+      <Choice value="恩施灯戏" />
+      <Choice value="湖北堂戏" />
+      <Choice value="恩施傩戏" />
+      <Choice value="郧剧" />
+      <Choice value="怀梆" />
+      <Choice value="落腔" />
+      <Choice value="豫南花鼓戏" />
+      <Choice value="宛梆" />
+      <Choice value="罗卷戏" />
+      <Choice value="扬高戏" />
+      <Choice value="太康道情" />
+      <Choice value="越调" />
+      <Choice value="山东梆子" />
+      <Choice value="莱芜梆子" />
+      <Choice value="茂腔" />
+      <Choice value="柳腔" />
+      <Choice value="渔鼓戏" />
+      <Choice value="蛤蟆嗡" />
+      <Choice value="八仙戏" />
+      <Choice value="鹧鸪戏" />
+      <Choice value="王皮戏" />
+      <Choice value="扽腔" />
+      <Choice value="一勾勾" />
+      <Choice value="东路梆子" />
+      <Choice value="蓝关戏" />
+      <Choice value="五音戏" />
+      <Choice value="端鼓戏" />
+      <Choice value="卫调花鼓戏" />
+      <Choice value="梨簧戏" />
+      <Choice value="贵池傩戏" />
+      <Choice value="徴剧" />
+      <Choice value="庐剧" />
+      <Choice value="推剧" />
+      <Choice value="淮北梆子戏" />
+      <Choice value="清音戏" />
+      <Choice value="淮北花鼓戏" />
+      <Choice value="皖南花鼓戏" />
+      <Choice value="文南词" />
+      <Choice value="岳西高腔" />
+      <Choice value="皖南目连戏" />
+      <Choice value="含弓戏" />
+      <Choice value="弹腔" />
+      <Choice value="太湖曲子戏" />
+      <Choice value="青阳腔" />
+      <Choice value="洪山戏" />
+      <Choice value="新昌调腔" />
+      <Choice value="湖剧" />
+      <Choice value="婺剧" />
+      <Choice value="绍剧" />
+      <Choice value="姚剧" />
+      <Choice value="甬剧" />
+      <Choice value="瓯剧" />
+      <Choice value="宁海平调" />
+      <Choice value="杭剧" />
+      <Choice value="睦剧" />
+      <Choice value="台州乱弹" />
+      <Choice value="和剧" />
+      <Choice value="江苏梆子" />
+      <Choice value="丹剧" />
+      <Choice value="海门山歌剧" />
+      <Choice value="淮海戏" />
+      <Choice value="苏剧" />
+      <Choice value="通剧" />
+      <Choice value="童子戏" />
+      <Choice value="锡剧" />
+      <Choice value="上海山歌剧" />
+      <Choice value="龙江剧" />
+      <Choice value="龙滨戏" />
+      <Choice value="拉场戏" />
+      <Choice value="满族新城戏" />
+      <Choice value="黄龙戏" />
+      <Choice value="唱剧" />
+      <Choice value="辽剧" />
+      <Choice value="阜新蒙古剧" />
+      <Choice value="海城喇叭戏" />
+      <Choice value="蒙古戏" />
+      <Choice value="漫瀚剧" />
+      <Choice value="河东道情" />
+      <Choice value="山西赛戏" />
+      <Choice value="孝义皮腔" />
+      <Choice value="北路梆子" />
+      <Choice value="上党梆子" />
+      <Choice value="晋南眉户" />
+      <Choice value="浮山乐乐腔" />
+      <Choice value="临县道情" />
+      <Choice value="汾孝秧歌" />
+      <Choice value="孝义碗碗腔" />
+      <Choice value="太原秧歌" />
+      <Choice value="曲沃碗碗腔" />
+      <Choice value="襄武秧歌" />
+      <Choice value="壶关秧歌" />
+      <Choice value="洪洞道情" />
+      <Choice value="祁太秧歌" />
+      <Choice value="左权小花戏" />
+      <Choice value="凤台小戏" />
+      <Choice value="晋中弦腔" />
+      <Choice value="广灵大秧歌" />
+      <Choice value="沁源秧歌" />
+      <Choice value="灵丘罗罗腔" />
+      <Choice value="繁峙大秧歌" />
+      <Choice value="锣鼓杂戏" />
+      <Choice value="河曲二人台" />
+      <Choice value="河东线腔" />
+      <Choice value="高跷竹马戏" />
+      <Choice value="芮城扬髙戏" />
+      <Choice value="平陆高调" />
+      <Choice value="贤寓调" />
+      <Choice value="老调" />
+      <Choice value="哈哈腔" />
+      <Choice value="南锣" />
+      <Choice value="高腔" />
+      <Choice value="罗罗腔" />
+      <Choice value="河北乱弹" />
+      <Choice value="丝弦" />
+      <Choice value="隆尧秧歌" />
+      <Choice value="唐剧" />
+      <Choice value="蔚县秧歌" />
+      <Choice value="怀安软秧歌" />
+      <Choice value="武安傩戏" />
+      <Choice value="定州秧歌" />
+      <Choice value="西调秧歌" />
+      <Choice value="沙东落子" />
+      <Choice value="北词两夹弦" />
+      <Choice value="弦子腔" />
+      <Choice value="西调" />
+      <Choice value="武安落子" />
+      <Choice value="平调" />
+      <Choice value="河北赛戏" />
+      <Choice value="北京曲剧" />
+      <Choice value="萍乡采茶戏" />
+      <Choice value="赣西采茶戏" />
+      <Choice value="袁河采茶戏" />
+      <Choice value="宜黄戏" />
+      <Choice value="西河戏" />
+      <Choice value="婺源徽剧" />
+      <Choice value="武宁采茶戏" />
+      <Choice value="万载花灯戏" />
+      <Choice value="瑞昌采茶戏" />
+      <Choice value="宁河戏" />
+      <Choice value="宁都采茶戏" />
+      <Choice value="九江青阳腔" />
+      <Choice value="吉安采茶戏" />
+      <Choice value="旴河戏" />
+      <Choice value="高安采茶戏" />
+      <Choice value="赣南采茶戏" />
+      <Choice value="抚州采茶戏" />
+      <Choice value="东河戏" />
+      <Choice value="赣中花鼓戏" />
+      <Choice value="南昌采茶戏" />
+      <Choice value="江西傩戏" />
+      <Choice value="赣东采茶戏" />
+      <Choice value="北路戏" />
+      <Choice value="打城戏" />
+      <Choice value="大腔戏" />
+      <Choice value="高甲戏" />
+      <Choice value="歌仔戏（多剧）" />
+      <Choice value="梨园戏" />
+      <Choice value="梅林戏" />
+      <Choice value="竹马戏" />
+      <Choice value="小腔戏" />
+      <Choice value="四平戏" />
+      <Choice value="闽剧" />
+      <Choice value="南词戏" />
+      <Choice value="闽西汉剧" />
+      <Choice value="平讲戏" />
+      <Choice value="莆仙戏" />
+      <Choice value="三角戏" />
+      <Choice value="山歌戏" />
+    </Taxonomy>
+    <Header value="题材" size="6" />
+    <Choices name="subject_type" toName="img" choice="single" layout="select">
+      <Choice value="历史剧" />
+      <Choice value="现代剧" />
+    </Choices>
+    <Header value="序号" size="6" />
+    <Number name="scene_index" toName="img" min="1" step="1" />
+    <Header value="分场标题" size="6" />
+    <TextArea name="scene_title" toName="img" rows="1" placeholder="该场标题" />
+    <Header value="地点" size="6" />
+    <TextArea name="scene_location" toName="img" rows="1" placeholder="该场情节发生地点" />
+    <Header value="拍摄时间" size="6" />
+    <DateTime name="shooting_date" toName="img" only="date" />
+    <Header value="场景描述" size="6" />
+    <TextArea name="scene_description" toName="img" rows="3" placeholder="场景环境描述" />
+    <Header value="画面构图" size="6" />
+    <Choices name="frame_composition" toName="img" choice="single" layout="select">
+      <Choice value="远景" />
+      <Choice value="全景" />
+      <Choice value="中景" />
+      <Choice value="近景" />
+      <Choice value="特写" />
+    </Choices>
+    <Header value="情节描述" size="6" />
+    <TextArea name="plot_description" toName="img" rows="3" placeholder="当前画面所示情节" />
+    <Header value="灯光" size="6" />
+    <Choices name="lighting_type" toName="img" choice="single" layout="select">
+      <Choice value="面光" />
+      <Choice value="耳光" />
+      <Choice value="顶光" />
+      <Choice value="侧光" />
+      <Choice value="逆光" />
+      <Choice value="脚光" />
+      <Choice value="天幕光" />
+      <Choice value="流动光" />
+    </Choices>
+    <Header value="空间" size="6" />
+    <Choices name="stage_space" toName="img" choice="single" layout="select">
+      <Choice value="镜框式舞台" />
+      <Choice value="古戏台" />
+      <Choice value="伸出式舞台" />
+      <Choice value="演播室舞台" />
+      <Choice value="户外广场舞台" />
+      <Choice value="实景开放式环境" />
+    </Choices>
+      </Panel>
+    </Collapse>
+
+    <View visibleWhen="region-selected" whenLabelValue="服装">
+      <Header value="款式" size="6" />
+      <Taxonomy name="costume_category" toName="img" perRegion="true" leafsOnly="true" maxUsages="1" minWidth="300px" maxWidth="560px">
+        <Choice value="蟒" />
+        <Choice value="帔" />
+        <Choice value="褶子" />
+        <Choice value="开氅" />
+        <Choice value="鹤氅" />
+        <Choice value="八卦衣" />
+        <Choice value="法衣" />
+        <Choice value="僧衣" />
+        <Choice value="宫装" />
+        <Choice value="旗装" />
+        <Choice value="斗篷" />
+        <Choice value="箭衣" />
+        <Choice value="靠" />
+        <Choice value="裙、袄、裤" />
+        <Choice value="旗袍" />
+        <Choice value="抱衣" />
+        <Choice value="侉衣" />
+        <Choice value="马褂" />
+        <Choice value="坎肩" />
+        <Choice value="打衣裤" />
+        <Choice value="茶衣裤" />
+        <Choice value="彩裤" />
+        <Choice value="胖袄" />
+        <Choice value="水衣子" />
+        <Choice value="八仙衣" />
+        <Choice value="制度衣" />
+        <Choice value="古装" />
+        <Choice value="喜神" />
+        <Choice value="四喜带" />
+        <Choice value="太监服" />
+        <Choice value="安安衣" />
+        <Choice value="腰包" />
+        <Choice value="褂子" />
+        <Choice value="饭单" />
+        <Choice value="龙套服" />
+        <Choice value="上下手袄子" />
+        <Choice value="仙童服" />
+        <Choice value="兵服" />
+        <Choice value="刀斧手服" />
+        <Choice value="哪吒服" />
+        <Choice value="大袖" />
+        <Choice value="大铠" />
+        <Choice value="大马童服" />
+        <Choice value="水族服" />
+        <Choice value="火神服" />
+        <Choice value="猴甲" />
+        <Choice value="猴衣" />
+        <Choice value="皂衣" />
+        <Choice value="神将服" />
+        <Choice value="纱褂子" />
+        <Choice value="虾将服" />
+        <Choice value="蛤蟆服" />
+        <Choice value="螃蟹服" />
+        <Choice value="鹤鹿童甲" />
+        <Choice value="龟帅服" />
+        <Choice value="仙女服" />
+        <Choice value="伽蓝服" />
+        <Choice value="天女散花服" />
+        <Choice value="昭君服" />
+        <Choice value="洛神服" />
+        <Choice value="袈裟" />
+        <Choice value="官衣" />
+        <Choice value="卒坎" />
+      </Taxonomy>
+      <Header value="性别（穿戴者）" size="6" />
+      <Choices name="gender" toName="img" perRegion="true" choice="single" layout="select">
+        <Choice value="男" />
+        <Choice value="女" />
+        <Choice value="不确定" />
+      </Choices>
+      <Header value="颜色" size="6" />
+      <Choices name="color" toName="img" perRegion="true" choice="single" layout="select">
+        <Choice value="红" />
+        <Choice value="黄" />
+        <Choice value="绿" />
+        <Choice value="白" />
+        <Choice value="黑" />
+        <Choice value="蓝" />
+        <Choice value="粉" />
+        <Choice value="紫" />
+        <Choice value="湖" />
+        <Choice value="香" />
+        <Choice value="不确定" />
+      </Choices>
+      <Header value="备注" size="6" />
+      <TextArea name="costume_note" toName="img" perRegion="true" rows="2" placeholder="不确定项说明，如：款式不认识、颜色难判断" />
+    </View>
+
+    <View visibleWhen="region-selected" whenLabelValue="化装">
+      <Header value="化装类型" size="6" />
+      <Choices name="makeup_type" toName="img" perRegion="true" choice="single" layout="select">
+        <Choice value="俊扮" />
+        <Choice value="抹脸" />
+        <Choice value="面具" />
+      </Choices>
+      <Header value="面具名称" size="6" />
+      <TextArea name="mask_name" toName="img" perRegion="true" rows="1" placeholder="该角色面具名称" />
+      <Header value="脸谱名称" size="6" />
+      <TextArea name="facepaint_name" toName="img" perRegion="true" rows="1" placeholder="脸谱名称" />
+    </View>
+
+    <View visibleWhen="region-selected" whenLabelValue="道具">
+      <Header value="道具名称" size="6" />
+      <TextArea name="prop_name" toName="img" perRegion="true" rows="1" placeholder="砌末具体名称" />
+    </View>
+
+    <View visibleWhen="region-selected" whenLabelValue="盔箱">
+      <Header value="盔箱名称" size="6" />
+      <TextArea name="helmet_name" toName="img" perRegion="true" rows="1" placeholder="盔头/帽类具体名称" />
+      <Header value="备注" size="6" />
+      <TextArea name="helmet_note" toName="img" perRegion="true" rows="2" placeholder="不确定项说明" />
+    </View>
+
+    <View visibleWhen="region-selected" whenLabelValue="纹样">
+      <Header value="纹样（13 项主纹样；素件可不画纹样框）" size="6" />
+      <Taxonomy name="pattern" toName="img" perRegion="true" leafsOnly="true" maxUsages="1" minWidth="300px" maxWidth="560px">
+        <Choice value="素" />
+        <Choice value="花" />
+        <Choice value="龙" />
+        <Choice value="凤" />
+        <Choice value="云" />
+        <Choice value="瑞兽" />
+        <Choice value="祥禽" />
+        <Choice value="八宝" />
+        <Choice value="盘长" />
+        <Choice value="万字" />
+        <Choice value="回纹" />
+        <Choice value="福字纹" />
+        <Choice value="寿字纹" />
+      </Taxonomy>
+      <Header value="纹样备注" size="6" />
+      <TextArea name="pattern_note" toName="img" perRegion="true" rows="2" placeholder="纹样说明，如：不认识的纹样、特殊纹样名称" />
+    </View>
+  </View>
+
+  <View style="width:64%;">
+    <Header value="戏曲剧照" size="4" />
+    <Image name="img" value="$image" />
+
+    <Header value="1. 选择标注对象" size="5" />
+    <Choices name="ui_draw_category" toName="img" choice="single" showInline="true" layout="inline">
+      <Choice value="服装" />
+      <Choice value="化装" />
+      <Choice value="道具" />
+      <Choice value="盔箱" />
+    </Choices>
+
+    <View visibleWhen="choice-selected" whenTagName="ui_draw_category" whenChoiceValue="服装">
+      <Header value="2. 选择服装子类（点子类后才能画框）" size="5" />
+      <Choices name="ui_costume_sub" toName="img" choice="single" showInline="true" layout="inline">
+        <Choice value="款式颜色" />
+        <Choice value="纹样" />
+      </Choices>
+    </View>
+
+    <View visibleWhen="choice-selected" whenTagName="ui_costume_sub" whenChoiceValue="款式颜色">
+      <Header value="画服装框（点下方「服装」后再拖拽）" size="5" />
+      <RectangleLabels name="object_category" toName="img" choice="single" strokeWidth="2">
+        <Label value="服装" background="#4b8f8c" />
+      </RectangleLabels>
+    </View>
+
+    <View visibleWhen="choice-selected" whenTagName="ui_costume_sub" whenChoiceValue="纹样">
+      <Header value="画纹样框（点下方「纹样」后再拖拽；画完请点选粉色框填属性）" size="5" />
+      <RectangleLabels name="pattern_box" toName="img" choice="single" strokeWidth="2">
+        <Label value="纹样" background="#f15bb5" />
+      </RectangleLabels>
+    </View>
+
+    <View visibleWhen="choice-selected" whenTagName="ui_draw_category" whenChoiceValue="化装">
+      <Header value="画化装框（点下方「化装」后再拖拽）" size="5" />
+      <RectangleLabels name="obj_makeup" toName="img" choice="single" strokeWidth="2">
+        <Label value="化装" background="#6a4c93" />
+      </RectangleLabels>
+    </View>
+
+    <View visibleWhen="choice-selected" whenTagName="ui_draw_category" whenChoiceValue="道具">
+      <Header value="画道具框（点下方「道具」后再拖拽）" size="5" />
+      <RectangleLabels name="obj_prop" toName="img" choice="single" strokeWidth="2">
+        <Label value="道具" background="#f3a712" />
+      </RectangleLabels>
+    </View>
+
+    <View visibleWhen="choice-selected" whenTagName="ui_draw_category" whenChoiceValue="盔箱">
+      <Header value="画盔箱框（点下方「盔箱」后再拖拽）" size="5" />
+      <RectangleLabels name="obj_helmet" toName="img" choice="single" strokeWidth="2">
+        <Label value="盔箱" background="#e4572e" />
+      </RectangleLabels>
+    </View>
+  </View>
+</View>

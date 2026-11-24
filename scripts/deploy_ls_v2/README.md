@@ -1,59 +1,60 @@
-# 戏曲服饰标注 v2｜服务器端一键部署与建项目指南（性别版 & 短衣版）
+# 戏曲服饰标注 v2｜一键部署与建项目指南（性别版 & 短衣版）
 
-提供两套独立的服务器端部署入口，支持**从零拉代码、拉前端 `dist`、构建 Docker 镜像、启动 PostgreSQL + Label Studio、自动初始化管理员、配置 XML v2、绑定云端 S3（`https://s3.nacta.edu.cn` / `lable-studio`）并导入数据**；两套版本端口与数据卷完全隔离，可在同一台服务器同时运行：
-
-- **性别版（`deploy_gender.sh`）**：默认目录 `~/ls-gender`、端口 `8080`、项目 **「戏曲服饰v2｜全量性别预识别（699张/1710框）」**
-- **短衣版（`deploy_short.sh`）**：默认目录 `~/ls-short`、端口 `8082`、项目 **「短衣范围调整｜口径B（216张/411框）」**
+提供面向**个人电脑本地（推荐）**与**服务器 Docker**的独立部署入口，分成两个完全隔离的版本：
+- **性别版**：项目 **「戏曲服饰v2｜全量性别预识别（699张/1710框）」**（默认端口 `8080`）
+- **短衣版**：项目 **「短衣范围调整｜口径B（216张/411框）」**（默认端口 `8082`）
 
 ---
 
-## 方式一：从零全自动一键部署（推荐）
+## 方式一：在别人电脑上本地一键部署（拉代码 → 编译前端 → 建项目导入，推荐）
 
-只需把单个 `deploy_gender.sh` 或 `deploy_short.sh` 拷到服务器（或在已 clone 仓库内直接运行），宿主机无需安装 Python 依赖，也无需手工去网页复制 Token：
+### 前置软件（目标电脑需提前安装）
+- **Git**、**Python 3.10+**、**Node.js（建议 v18/v20 LTS）**、**Yarn**（若未装 Yarn，脚本会尝试自动启用或安装）
+
+### 一键运行（只需把单个 `.py` 发给目标电脑，或拉仓库后直接跑）
+支持跨 Windows / macOS / Linux，且**全部幂等**：首次自动拉代码 → 建 `.venv` 装后端 → `yarn ls:build` 编译前端 → 初始化独立 SQLite 与管理员 → 启服务建项目并自动打开浏览器；**二次运行会跳过安装与编译直接秒开**。
+
+```bash
+# 1. 部署【性别版】（默认目录 ./ls-gender，端口 8080）
+python pc_deploy_gender.py
+
+# 2. 部署【短衣版】（默认目录 ./ls-short，端口 8082，可与性别版同机并行）
+python pc_deploy_short.py
+```
+
+- **Windows 用户**也可以直接双击：`一键部署_性别版.bat` 或 `一键部署_短衣版.bat`。
+- 运行中若未提前设置 `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY`，会提示安全输入 S3 凭据并缓存在 `.lsdata/.deploy_local.env`。
+- **单人电脑使用提示**：直接用终端打印出的管理员账号（默认 `admin@xiqu.local`）登录，**无需额外分配任务即可直接看到全部图片并开始标注**；若多人协作再用管理员进 **Settings → 任务分配** 分派给其他账号。
+- 若对方网络走 Gitee 更快，可附加参数 `--gitee`。
+
+---
+
+## 方式二：Linux 服务器 Docker 全自动一键部署
+
+只需把单个 `deploy_gender.sh` 或 `deploy_short.sh` 拷到装有 Docker 的服务器上运行：
 
 ```bash
 export MINIO_ACCESS_KEY="<你的_S3_ACCESS_KEY>"
 export MINIO_SECRET_KEY="<你的_S3_SECRET_KEY>"
-# 可选：自定义管理员账号/密码（不填则默认 admin@xiqu.local 并自动生成随机密码）
-# export ADMIN_EMAIL="admin@xiqu.local"
-# export ADMIN_PASSWORD="your-password"
-# 若服务器走 Gitee 镜像拉主仓库，加 USE_GITEE=1
-# export USE_GITEE=1
 
-# 1. 部署【性别版】（默认 8080 端口，目录 ~/ls-gender）
-bash deploy_gender.sh
-
-# 2. 部署【短衣版】（默认 8082 端口，目录 ~/ls-short）
-bash deploy_short.sh
+bash deploy_gender.sh   # 性别版（8080 端口，目录 ~/ls-gender）
+bash deploy_short.sh    # 短衣版（8082 端口，目录 ~/ls-short）
 ```
-
-> 若未提前 export `MINIO_ACCESS_KEY` / `MINIO_SECRET_KEY`，交互式运行脚本时会提示安全输入，并写入部署目录内 `chmod 600` 的 `.deploy.env`。
 
 ---
 
-## 方式二：在已有 Label Studio 中仅建项目
-
-如果服务器上已经跑着 Label Studio，只需在现有实例里创建这两个项目：
+## 方式三：在已有 Label Studio 中仅建项目
 
 ```bash
 pip install requests
-export LS_URL="http://127.0.0.1:8080"        # 服务器 Label Studio 地址
+export LS_URL="http://127.0.0.1:8080"
 export LS_API_TOKEN="<Account & Settings 里的 Token>"
-export MINIO_ENDPOINT="https://s3.nacta.edu.cn"
-export MINIO_BUCKET="lable-studio"           # 保持原始拼写 lable-studio
-export MINIO_ACCESS_KEY="<你的_S3_ACCESS_KEY>"   # 若容器已配 AWS_* 兜底可省略
-export MINIO_SECRET_KEY="<你的_S3_SECRET_KEY>"   # 若容器已配 AWS_* 兜底可省略
+export MINIO_ACCESS_KEY="<你的_S3_ACCESS_KEY>"
+export MINIO_SECRET_KEY="<你的_S3_SECRET_KEY>"
 
 python setup_gender_project.py
 python setup_short_project.py
 ```
-
----
-
-## 建完后必做：任务分配（定制版强制分配模式）
-本仓库定制版开启了**强制任务分配模式**：非管理员（owner）账号只能看到、只能标注明确分配给自己的任务。
-两个项目创建并导入完成后，请务必：
-- 用管理员登录，进入项目 **Settings → 任务分配**（或调用 `/api/projects/{id}/assignments/`）把任务分派给对应的标注员，否则标注员登录后任务列表为空。
 
 ---
 
